@@ -18,9 +18,11 @@
 
 
 import St from 'gi://St';
+import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
 
-import {createBox, isActorAlive} from '../lib/Utils.js';
+import {TimeoutTracker} from '../lib/TimeoutTracker.js';
+import {CHILD_ADDED, CHILD_REMOVED, createBox, isActorAlive} from '../lib/Utils.js';
 import {HeightAnimator, easeTo, fadeIn, stopFade} from './Animations.js';
 
 
@@ -207,6 +209,9 @@ class MorphGhost {
         [this._iconSource, this._menuSource]
             .filter(isActorAlive)
             .forEach(source => source.disconnectObject(this));
+        this._icon.destroy();
+        if (this._menu)
+            this._menu.destroy();
         this.actor.destroy();
         this.actor = null;
         this._iconSource = null;
@@ -258,9 +263,12 @@ export class CompactToggles {
         this._fullHeight = 0;
         this._boxHeight = new HeightAnimator(this._box, MORPH_DURATION, MORPH_MODE);
         this._hiddenItems = [];
+        this._watched = [];
         this._pairs = [];
         this._ghosts = new Map();
         this._fades = new Set();
+        this._timers = new TimeoutTracker();
+        this._refreshId = 0;
 
         this._rows = createBox(true, 'sanket-compact-grid', {x_expand: true});
         this._actor = createBox(true, 'sanket-compact-box', {x_expand: true, visible: false});
@@ -279,8 +287,8 @@ export class CompactToggles {
                 this._settle();
         }, this);
         this._settings.connectObject(
-            'changed::compact-show-volume', () => this._onSlidersChanged(),
-            'changed::compact-show-brightness', () => this._onSlidersChanged(),
+            'changed::compact-show-volume', () => this._refresh(),
+            'changed::compact-show-brightness', () => this._refresh(),
             this);
     }
 
@@ -311,6 +319,7 @@ export class CompactToggles {
     }
 
     destroy() {
+        this._timers.destroy();
         if (this._active)
             this._hide(false);
         this._settle();
@@ -320,6 +329,8 @@ export class CompactToggles {
         this._actor.destroy();
 
         this._layer = null;
+        this._timers = null;
+        this._watched = null;
         this._fades = null;
         this._ghosts = null;
         this._pairs = null;
@@ -364,6 +375,11 @@ export class CompactToggles {
         else
             row.destroy();
 
+        const refresh = () => this._queueRefresh();
+        this._watched = this._grid.get_children();
+        this._watched.forEach(item => item.connectObject('notify::visible', refresh, this));
+        this._grid.connectObject(CHILD_ADDED, refresh, CHILD_REMOVED, refresh, this);
+
         this._actor.show();
         this._active = true;
     }
@@ -376,13 +392,13 @@ export class CompactToggles {
                 .forEach(pair => this._ghostFor(pair, pair.proxy, pair.proxyIcon, pair.item, pair.icon));
         }
 
+        this._timers.remove(this._refreshId);
+        this._refreshId = 0;
+        this._grid.disconnectObject(this);
+        this._watched.filter(isActorAlive).forEach(item => item.disconnectObject(this));
+        this._pairs.map(pair => pair.icon).filter(isActorAlive).forEach(icon => icon.disconnectObject(this));
+
         this._actor.hide();
-        this._pairs.forEach(({item, icon}) => {
-            if (isActorAlive(item))
-                item.disconnectObject(this);
-            if (isActorAlive(icon))
-                icon.disconnectObject(this);
-        });
         this._rows.destroy_all_children();
 
         this._hiddenItems.filter(isActorAlive).forEach(item => {
@@ -397,6 +413,7 @@ export class CompactToggles {
 
         this._grid.width = -1;
         this._pairs = [];
+        this._watched = [];
         this._hiddenItems = [];
         this._active = false;
     }
@@ -440,11 +457,23 @@ export class CompactToggles {
         return !key || this._settings.get_boolean(key);
     }
 
-    _onSlidersChanged() {
+    _queueRefresh() {
+        if (this._refreshId)
+            return;
+
+        this._refreshId = this._timers.addIdle(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._refreshId = 0;
+            this._refresh();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _refresh() {
         if (!this._active)
             return;
 
         this._hide(false);
+        this._fullHeight = this._boxHeight.naturalHeight();
         this._show(false);
         this._settle();
     }
