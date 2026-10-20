@@ -1,3 +1,16 @@
+## [1.1] - 20-10-2026
+
+### Compact Quick Settings
+* Toggles that appear or reappear while compact mode is on, like Bluetooth when an adapter connects or a new VPN toggle, now join the circles instead of showing up as full pills
+* The Quick Settings height now updates correctly when toggles are added or removed in compact mode
+
+### Calendar
+* The animated weather card now uses much less CPU while the date menu is open
+* Weather animation now stops and starts right away when system animations are turned off or on
+
+### Under the hood
+* Cleaner teardown of the compact toggle morph when the extension is disabled
+
 ## [1.0] - 20-10-2026
 
 The first public release of Sanket.

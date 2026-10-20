@@ -26,6 +26,7 @@ import {drawWeather} from '../lib/WeatherArt.js';
 
 
 const STILL_TIME = 0.1;
+const FRAME_INTERVAL = GLib.USEC_PER_SEC / 30;
 
 export const WeatherScene = GObject.registerClass(
 class WeatherScene extends St.DrawingArea {
@@ -36,13 +37,13 @@ class WeatherScene extends St.DrawingArea {
         this._animated = true;
         this._time = STILL_TIME;
         this._origin = 0;
+        this._lastFrame = 0;
 
         this._timeline = new Clutter.Timeline({actor: this, duration: 1000, repeat_count: -1});
-        this._timeline.connect('new-frame', () => {
-            this._time = (GLib.get_monotonic_time() - this._origin) / GLib.USEC_PER_SEC;
-            this.queue_repaint();
-        });
+        this._timeline.connect('new-frame', () => this._onFrame());
+        St.Settings.get().connectObject('notify::enable-animations', () => this._sync(), this);
         this.connect('destroy', () => {
+            St.Settings.get().disconnectObject(this);
             this._timeline.stop();
             this._timeline = null;
         });
@@ -74,6 +75,16 @@ class WeatherScene extends St.DrawingArea {
         const [width, height] = this.get_surface_size();
         drawWeather(cr, width, height, this._kind, this._night, this._time);
         cr.$dispose();
+    }
+
+    _onFrame() {
+        const now = GLib.get_monotonic_time();
+        if (now - this._lastFrame < FRAME_INTERVAL)
+            return;
+
+        this._lastFrame = now;
+        this._time = (now - this._origin) / GLib.USEC_PER_SEC;
+        this.queue_repaint();
     }
 
     _sync() {
