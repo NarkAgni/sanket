@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Flat, transparent Sanket icon -->
+  <rect x="48" y="64" width="400" height="222" rx="40" fill="#F1F7FF" stroke="#3584E4" stroke-width="3"/>
+
+  <!-- Red notification badge with white rim -->
+  <circle cx="408" cy="76" r="48" fill="#FFFFFF"/>
+  <circle cx="408" cy="76" r="39" fill="#F04438"/>
+
+  <!-- Bell -->
+  <path d="M91 164
+           C91 145 101 130 117 124
+           V116
+           C117 105 125 97 136 97
+           C147 97 155 105 155 116
+           V124
+           C171 130 181 145 181 164
+           V190
+           C181 201 191 209 196 216
+           C200 222 196 228 189 228
+           H83
+           C76 228 72 222 76 216
+           C81 209 91 201 91 190 Z"
+        fill="#1877F2" transform="translate(0 5) scale(.88) translate(9 17)"/>
+  <path d="M112 244 C115 257 137 263 150 250 C153 247 155 243 156 239 H109 Z" fill="#1877F2"/>
+
+  <!-- Notification preview lines -->
+  <rect x="218" y="147" width="172" height="25" rx="12.5" fill="#83B9F7"/>
+  <rect x="218" y="188" width="132" height="25" rx="12.5" fill="#83B9F7"/>
+
+  <!-- Separate quick settings panel -->
+  <rect x="48" y="307" width="400" height="132" rx="40" fill="#F1F7FF" stroke="#3584E4" stroke-width="3"/>
+
+  <!-- Flat circular buttons -->
+  <g fill="#D7EAFE">
+    <circle cx="137" cy="373" r="45"/>
+    <circle cx="248" cy="373" r="45"/>
+    <circle cx="359" cy="373" r="45"/>
+  </g>
+
+  <!-- Wi-Fi -->
+  <g fill="none" stroke="#1877F2" stroke-width="8" stroke-linecap="round">
+    <path d="M111 365 Q137 341 163 365"/>
+    <path d="M120 377 Q137 362 154 377"/>
+  </g>
+  <circle cx="137" cy="390" r="5.5" fill="#1877F2"/>
+
+  <!-- Bluetooth -->
+  <path d="M247 342 V404 L267 385 L231 354 M231 392 L267 361 L247 342"
+        fill="none" stroke="#1877F2" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Do Not Disturb -->
+  <path d="M369 344 A30 30 0 1 0 386 391 A25 25 0 0 1 369 344 Z" fill="#1877F2"/>
+</svg>

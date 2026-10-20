@@ -1,0 +1,263 @@
+.popup-menu-content.sanket-notif-card {
+    margin: 0;
+    border-radius: 36px;
+}
+
+.popup-menu-content.sanket-notif-card:ltr {
+    padding: 18px 0 12px 18px;
+}
+
+.popup-menu-content.sanket-notif-card:rtl {
+    padding: 18px 18px 12px 0;
+}
+
+.sanket-notif-card .message-list {
+    width: 0;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border-width: 0;
+}
+
+.sanket-notif-card .message-view:ltr {
+    margin-right: 18px;
+}
+
+.sanket-notif-card .message-view:rtl {
+    margin-left: 18px;
+}
+
+.sanket-notif-card StScrollView StScrollBar {
+    margin-top: 16px;
+    margin-bottom: 16px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+}
+
+.sanket-notif-card .message-list-clear-button,
+.sanket-notif-card .message-list-clear-button:focus,
+.sanket-notif-card .button.message-list-clear-button,
+.sanket-notif-card .button.message-list-clear-button:focus,
+.sanket-notif-card .sanket-more-pill-btn,
+.sanket-notif-card .sanket-more-pill-btn:focus {
+    background-color: transparent !important;
+    background-image: none !important;
+    background-gradient-direction: none !important;
+    border-color: transparent !important;
+    border-width: 0 !important;
+    box-shadow: none !important;
+    border-radius: 99px !important;
+    margin: 0 !important;
+    padding: 6px 16px !important;
+    font-weight: bold;
+}
+
+.sanket-notif-card .message-list-clear-button:hover,
+.sanket-notif-card .button.message-list-clear-button:hover,
+.sanket-notif-card .sanket-more-pill-btn:hover {
+    background-color: rgba(255, 255, 255, 0.12) !important;
+    background-image: none !important;
+    background-gradient-direction: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.sanket-notif-card .message-list-clear-button:active,
+.sanket-notif-card .button.message-list-clear-button:active,
+.sanket-notif-card .sanket-more-pill-btn:active {
+    background-color: rgba(255, 255, 255, 0.18) !important;
+    background-image: none !important;
+    background-gradient-direction: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.sanket-notif-card .message-list-controls {
+    padding: 6px 0 0;
+    margin: 0;
+}
+
+.sanket-notif-card .message-list-controls:ltr {
+    margin-left: 0;
+    margin-right: 18px;
+}
+
+.sanket-notif-card .message-list-controls:rtl {
+    margin-left: 18px;
+    margin-right: 0;
+}
+
+.sanket-more-pill-content {
+    spacing: 6px;
+}
+
+.sanket-compact-box {
+    spacing: 6px;
+    padding-top: 12px;
+}
+
+.sanket-compact-grid {
+    spacing: 12px;
+}
+
+.sanket-compact-row {
+    spacing: 12px;
+}
+
+.quick-toggle.sanket-compact-toggle {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    max-width: 48px;
+    min-height: 48px;
+    max-height: 48px;
+    padding: 0;
+    border-radius: 99px;
+}
+
+.sanket-compact-toggle .quick-toggle-icon {
+    margin: 0;
+    padding: 0;
+}
+
+.sanket-pin-button:checked {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+.sanket-notif-card .message .message-header {
+    spacing: 2px;
+}
+
+.sanket-notif-card .message .message-header .message-header-content {
+    margin: 0 4px;
+}
+
+.sanket-notif-card .message .message-header .message-expand-button,
+.sanket-notif-card .message .message-header .message-close-button {
+    margin: 0;
+    padding: 6px;
+    min-width: 0;
+    min-height: 0;
+}
+
+.sanket-notif-card .message .message-header .message-expand-button StIcon,
+.sanket-notif-card .message .message-header .message-close-button StIcon {
+    icon-size: 16px;
+}
+.quick-toggle.sanket-compact-ghost {
+    padding: 0;
+    border-radius: 999px;
+}
+
+.sanket-notif-card .message .message-header .message-expand-button,
+.sanket-notif-card .message .message-header .message-expand-button:hover,
+.sanket-notif-card .message .message-header .message-expand-button:active,
+.sanket-notif-card .message .message-header .message-expand-button:focus {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.sanket-calendar-panel {
+    spacing: 12px;
+}
+
+.sanket-calendar-panel .world-clocks-button.sanket-clocks-card,
+.sanket-calendar-panel .weather-button.sanket-weather-card {
+    padding: 12px;
+}
+
+.sanket-clocks-page {
+    spacing: 10px;
+}
+
+.sanket-clock-row {
+    spacing: 12px;
+}
+
+.sanket-clock-row-compact {
+    spacing: 10px;
+}
+
+.sanket-clock-city {
+    font-weight: bold;
+}
+
+.sanket-clock-time {
+    font-size: 0.9em;
+    font-feature-settings: "tnum";
+}
+
+.sanket-analog-clock {
+    width: 32px;
+    height: 32px;
+}
+
+.sanket-analog-clock.sanket-analog-clock-small {
+    width: 20px;
+    height: 20px;
+}
+
+.sanket-clocks-dots {
+    spacing: 6px;
+    padding-top: 10px;
+}
+
+.sanket-clocks-dot {
+    width: 6px;
+    height: 6px;
+    padding: 0;
+    border-radius: 99px;
+    background-color: rgba(127, 127, 127, 0.45);
+    transition-duration: 200ms;
+}
+
+.sanket-clocks-dot:hover {
+    background-color: rgba(127, 127, 127, 0.7);
+}
+
+.sanket-clocks-dot:checked {
+    background-color: rgba(200, 200, 200, 0.95);
+}
+
+.sanket-setup-hint {
+    spacing: 8px;
+}
+
+.sanket-setup-hint-icon {
+    icon-size: 16px;
+}
+
+.sanket-weather-box {
+    spacing: 12px;
+}
+
+.sanket-weather-scene {
+    width: 72px;
+    height: 56px;
+}
+
+.sanket-weather-temperature {
+    font-size: 2em;
+    font-weight: 300;
+    font-feature-settings: "tnum";
+}
+
+.sanket-weather-details {
+    spacing: 2px;
+}
+
+.sanket-weather-summary {
+    font-weight: bold;
+}
+
+.sanket-weather-range,
+.sanket-weather-location {
+    font-size: 0.85em;
+    font-feature-settings: "tnum";
+}
+
+.sanket-weather-card.sanket-setup-hint .sanket-weather-summary {
+    font-weight: normal;
+}

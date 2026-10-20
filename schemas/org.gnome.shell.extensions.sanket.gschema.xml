@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="sanket@narkagni">
+    <schema id="org.gnome.shell.extensions.sanket" path="/org/gnome/shell/extensions/sanket/">
+        <key name="scrollbar-mode" type="s">
+            <choices>
+                <choice value="auto"/>
+                <choice value="always"/>
+                <choice value="never"/>
+            </choices>
+            <default>'auto'</default>
+            <summary>Notification scrollbar visibility</summary>
+        </key>
+
+        <key name="animation-speed" type="d">
+            <range min="0.25" max="3.0"/>
+            <default>1.0</default>
+            <summary>Animation speed multiplier</summary>
+        </key>
+
+        <key name="compact-show-volume" type="b">
+            <default>true</default>
+            <summary>Keep the volume sliders in compact Quick Settings</summary>
+        </key>
+
+        <key name="compact-show-brightness" type="b">
+            <default>true</default>
+            <summary>Keep the brightness slider in compact Quick Settings</summary>
+        </key>
+        
+        <key name="calendar-layout" type="s">
+            <choices>
+                <choice value="stacked"/>
+                <choice value="wide"/>
+            </choices>
+            <default>'wide'</default>
+            <summary>Calendar popover layout</summary>
+        </key>
+
+        <key name="clock-style" type="s">
+            <choices>
+                <choice value="analog"/>
+                <choice value="compact"/>
+            </choices>
+            <default>'analog'</default>
+            <summary>World clocks style</summary>
+        </key>
+
+        <key name="show-events" type="b">
+            <default>true</default>
+            <summary>Show calendar events</summary>
+        </key>
+
+        <key name="show-setup-hints" type="b">
+            <default>true</default>
+            <summary>Show shortcuts to add world clocks and a weather location when none are set</summary>
+        </key>
+
+        <key name="weather-animated" type="b">
+            <default>true</default>
+            <summary>Animate the weather scene</summary>
+        </key>
+
+        <key name="show-date-header" type="b">
+            <default>true</default>
+            <summary>Show the date header above the calendar</summary>
+        </key>
+    </schema>
+</schemalist>
