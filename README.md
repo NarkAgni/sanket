@@ -108,8 +108,8 @@ Sanket will be available on [GNOME Extensions](https://extensions.gnome.org/) on
 Clone the repository, enter the project directory, and run the installer:
 
 ```bash
-git clone https://github.com/narkagni/sandesh.git
-cd sandesh
+git clone https://github.com/narkagni/sanket.git
+cd sanket
 ./manage.sh install
 ```
 
@@ -121,7 +121,7 @@ After installation, restart GNOME Shell:
 Then enable Sanket:
 
 ```bash
-gnome-extensions enable sandesh@narkagni
+gnome-extensions enable sanket@narkagni
 ```
 
 ## Settings
@@ -131,7 +131,7 @@ Open Sanket preferences through the GNOME Extensions app or Extension Manager.
 You can also open the settings directly:
 
 ```bash
-gnome-extensions prefs sandesh@narkagni
+gnome-extensions prefs sanket@narkagni
 ```
 
 | Settings Page | Description |
