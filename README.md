@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="icons/logo.svg" alt="Sanket logo" width="120">
+<img src="icons/logo.svg" alt="Sanket logo" width="350">
 
 # Sanket
 

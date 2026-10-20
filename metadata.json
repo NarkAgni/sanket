@@ -2,7 +2,7 @@
   "name": "Sanket",
   "description": "A floating notification island below Quick Settings with pinned notifications, Quick Settings toggles that morph into circles, and a cleaner calendar with world clocks and animated weather.",
   "uuid": "sanket@narkagni",
-  "version-name": "1.1",
+  "version-name": "1.2",
   "gettext-domain": "sanket@narkagni",
   "settings-schema": "org.gnome.shell.extensions.sanket",
   "shell-version": [

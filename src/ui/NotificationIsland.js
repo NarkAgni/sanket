@@ -44,6 +44,8 @@ const REVEAL_MODE = Clutter.AnimationMode.EASE_OUT_QUART;
 const CARD_SHIFT = 8;
 const SETTLE_DELAY = 320;
 const FOLLOWED_PROPERTIES = ['translation-x', 'translation-y'];
+const CARD_CLASS = 'sanket-notif-card';
+const PILL_CLASS = 'sanket-more-pill-btn';
 
 function stackSize(message) {
     return message._notificationToMessage ? message._notificationToMessage.size : 1;
@@ -85,6 +87,7 @@ export class NotificationIsland {
         this._buildActors();
         this._adoptMessageList();
         this._centerControls();
+        this._followTheme();
         this._connectSignals();
         this._sync(false);
     }
@@ -133,6 +136,7 @@ export class NotificationIsland {
 
         this._decorator.destroy();
         this._scrollbar.destroy();
+        this._restoreTheme();
         this._restoreControls();
         this._releaseMessageList();
         if (isActorAlive(this._holder))
@@ -182,20 +186,20 @@ export class NotificationIsland {
         pillContent.add_child(this._pillIcon);
 
         this._pill = new St.Button({
-            style_class: 'button sanket-more-pill-btn',
+            style_class: `button ${PILL_CLASS}`,
             can_focus: true,
             x_align: Clutter.ActorAlign.CENTER,
             child: pillContent,
         });
         this._pill.connectObject('clicked', () => this.setExpanded(!this._expanded), this);
 
-        this._panel = createBox(true, 'popup-menu-content datemenu-popover sanket-notif-card', {
+        this._panel = createBox(true, 'sanket-notif-card', {
             x_expand: true,
             y_expand: true,
             reactive: true,
         });
 
-        this._card = createBox(true, 'sanket-notif-island', {visible: false});
+        this._card = createBox(true, 'popup-menu sanket-notif-island', {visible: false});
         this._card.add_child(this._panel);
 
         this._layout = new IslandLayout(this._menu);
@@ -264,11 +268,10 @@ export class NotificationIsland {
         this._controls = this._clearButton.get_parent();
         this._controlsAlign = [this._controls.x_align, this._controls.x_expand];
         this._clearAlign = [this._clearButton.x_align, this._clearButton.x_expand, this._clearButton.y_align];
-        this._clearStyleClass = this._clearButton.style_class;
 
         this._controls.x_align = Clutter.ActorAlign.FILL;
         this._controls.x_expand = true;
-        this._clearButton.style_class = 'button sanket-more-pill-btn';
+        this._clearButton.add_style_class_name(PILL_CLASS);
         this._clearButton.x_align = Clutter.ActorAlign.START;
         this._clearButton.y_align = Clutter.ActorAlign.CENTER;
         this._clearButton.x_expand = true;
@@ -294,16 +297,51 @@ export class NotificationIsland {
         }
         if (isActorAlive(this._clearButton)) {
             [this._clearButton.x_align, this._clearButton.x_expand, this._clearButton.y_align] = this._clearAlign;
-            this._clearButton.style_class = this._clearStyleClass;
+            this._clearButton.remove_style_class_name(PILL_CLASS);
             this._clearButton.show();
         }
         this._hiddenControls.filter(isActorAlive).forEach(child => child.show());
 
-        this._clearStyleClass = null;
         this._hiddenControls = null;
         this._clearAlign = null;
         this._clearButton = null;
         this._controls = null;
+    }
+
+    _followTheme() {
+        this._gutterActors = [this._messageView || this._messageList._sectionList, this._controls];
+        this._gutterStyles = this._gutterActors.map(actor => actor.style);
+
+        this._qsBox.connectObject('notify::style-class', () => this._syncCardClass(), this);
+        this._panel.connectObject('style-changed', () => this._syncGutter(), this);
+        this._syncCardClass();
+        this._syncGutter();
+    }
+
+    _syncCardClass() {
+        this._panel.style_class = `${this._qsBox.style_class} ${CARD_CLASS}`;
+    }
+
+    _syncGutter() {
+        const rtl = this._panel.get_text_direction() === Clutter.TextDirection.RTL;
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        const padding = this._panel.get_theme_node().get_padding(rtl ? St.Side.RIGHT : St.Side.LEFT);
+        const style = `margin-${rtl ? 'left' : 'right'}: ${Math.round(padding / scale)}px;`;
+        this._gutterActors.forEach(actor => {
+            actor.style = style;
+        });
+    }
+
+    _restoreTheme() {
+        this._qsBox.disconnectObject(this);
+        this._panel.disconnectObject(this);
+        this._gutterActors.forEach((actor, index) => {
+            if (isActorAlive(actor))
+                actor.style = this._gutterStyles[index];
+        });
+
+        this._gutterActors = null;
+        this._gutterStyles = null;
     }
 
     _connectSignals() {

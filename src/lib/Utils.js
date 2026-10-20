@@ -59,3 +59,7 @@ export function isActorAlive(actor) {
     const state = GObject.Object.prototype.toString.call(actor).toUpperCase();
     return !state.includes('DISPOSED') && !state.includes('FINALIZED');
 }
+export function tintOf(actor, alpha) {
+    const {red, green, blue} = actor.get_theme_node().get_foreground_color();
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}

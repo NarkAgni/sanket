@@ -33,6 +33,7 @@ import {CHILD_ADDED, CHILD_REMOVED, createBox, isActorAlive} from '../lib/Utils.
 const PAGE_SIZES = {analog: 4, compact: 6};
 const PAGE_SHIFT = 0.35;
 const DIM_OPACITY = 170;
+const DOT_DIM_OPACITY = 90;
 
 export class WorldClocksCard {
     constructor(clocksItem, settings) {
@@ -241,9 +242,9 @@ export class WorldClocksCard {
                 style_class: 'sanket-clocks-dot',
                 can_focus: true,
                 y_align: Clutter.ActorAlign.CENTER,
+                opacity: index === this._page ? 255 : DOT_DIM_OPACITY,
+                child: new St.Icon({icon_name: 'media-record-symbolic'}),
             });
-            if (index === this._page)
-                dot.add_style_pseudo_class('checked');
             dot.connectObject('clicked', () => this._goTo(index), this);
             this._dots.add_child(dot);
         }

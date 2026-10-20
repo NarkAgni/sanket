@@ -64,5 +64,11 @@
             <default>true</default>
             <summary>Show the date header above the calendar</summary>
         </key>
+
+        <key name="toggle-order" type="as">
+            <default>[]</default>
+            <summary>Quick Settings toggle order</summary>
+            <description>Order of Quick Settings toggles, set by dragging them</description>
+        </key>
     </schema>
 </schemalist>

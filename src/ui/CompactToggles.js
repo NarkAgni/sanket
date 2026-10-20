@@ -21,7 +21,9 @@ import St from 'gi://St';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
 
+import {isToggle} from '../lib/Toggles.js';
 import {TimeoutTracker} from '../lib/TimeoutTracker.js';
+import {ReorderDrag, slideReorder} from './ReorderDrag.js';
 import {CHILD_ADDED, CHILD_REMOVED, createBox, isActorAlive} from '../lib/Utils.js';
 import {HeightAnimator, easeTo, fadeIn, stopFade} from './Animations.js';
 
@@ -29,6 +31,7 @@ import {HeightAnimator, easeTo, fadeIn, stopFade} from './Animations.js';
 const COMPACT_COLUMNS = 6;
 const ICON_SIZE = 16;
 const TEXT_CLASSES = ['quick-toggle-title', 'quick-toggle-subtitle'];
+const MENU_BUTTON_CLASSES = ['quick-toggle-menu-button', 'quick-toggle-arrow'];
 const MORPH_DURATION = 480;
 const MORPH_MODE = Clutter.AnimationMode.EASE_OUT_QUART;
 const TEXT_IN_DELAY = 70;
@@ -60,7 +63,7 @@ function findText(actor, styleClass) {
 
 function isMenuButton(actor) {
     return Boolean(actor.has_style_class_name) && actor.visible &&
-        actor.has_style_class_name('quick-toggle-menu-button');
+        MENU_BUTTON_CLASSES.some(styleClass => actor.has_style_class_name(styleClass));
 }
 
 const SLIDER_KEYS = {
@@ -68,10 +71,6 @@ const SLIDER_KEYS = {
     InputStreamSlider: 'compact-show-volume',
     BrightnessItem: 'compact-show-brightness',
 };
-
-function isToggle(item) {
-    return item.has_style_class_name('quick-toggle') || item.has_style_class_name('quick-toggle-has-menu');
-}
 
 function offsetIn(actor, layer) {
     const [x, y] = actor.get_transformed_position();
@@ -255,8 +254,9 @@ class MorphGhost {
 }
 
 export class CompactToggles {
-    constructor(menu, settings) {
+    constructor(menu, settings, order) {
         this._settings = settings;
+        this._order = order;
         this._box = menu.box;
         this._grid = menu._grid;
         this._active = false;
@@ -269,6 +269,10 @@ export class CompactToggles {
         this._fades = new Set();
         this._timers = new TimeoutTracker();
         this._refreshId = 0;
+        this._drag = new ReorderDrag(
+            () => this._pairs.map(pair => pair.proxy),
+            (dragged, target) => this._moveProxy(dragged, target),
+            () => this._commitOrder());
 
         this._rows = createBox(true, 'sanket-compact-grid', {x_expand: true});
         this._actor = createBox(true, 'sanket-compact-box', {x_expand: true, visible: false});
@@ -283,9 +287,15 @@ export class CompactToggles {
         });
         menu._overlay.add_child(this._layer);
         this._layer.connectObject('notify::mapped', () => {
-            if (!this._layer.mapped)
+            if (!this._layer.mapped) {
+                this._drag.cancel();
                 this._settle();
+            }
         }, this);
+        this._order.connectObject(
+            'changed', () => this._refresh(),
+            'editing-changed', (_order, editing, cue) => this._drag.setEnabled(editing, cue),
+            this);
         this._settings.connectObject(
             'changed::compact-show-volume', () => this._refresh(),
             'changed::compact-show-brightness', () => this._refresh(),
@@ -323,12 +333,16 @@ export class CompactToggles {
         if (this._active)
             this._hide(false);
         this._settle();
+        this._drag.destroy();
+        this._order.disconnectObject(this);
         this._settings.disconnectObject(this);
         this._layer.disconnectObject(this);
         this._layer.destroy();
         this._actor.destroy();
 
         this._layer = null;
+        this._drag = null;
+        this._order = null;
         this._timers = null;
         this._watched = null;
         this._fades = null;
@@ -385,6 +399,7 @@ export class CompactToggles {
     }
 
     _hide(animate) {
+        this._drag.cancel();
         this._clearFades();
         if (animate) {
             this._pairs
@@ -541,11 +556,22 @@ export class CompactToggles {
         item.connectObject('notify::checked', sync, 'notify::reactive', sync, this);
         icon.connectObject('notify::gicon', sync, this);
         proxy.connectObject('clicked', () => this._activate(item), this);
+        this._drag.watch(proxy);
 
         sync();
         const pair = {item, icon, proxy, proxyIcon};
         this._pairs.push(pair);
         return pair;
+    }
+
+    _moveProxy(dragged, target) {
+        const row = dragged.get_parent();
+        slideReorder(row, () => row.set_child_at_index(dragged, row.get_children().indexOf(target)), dragged);
+    }
+
+    _commitOrder() {
+        const row = this._pairs[0].proxy.get_parent();
+        this._order.commit(row.get_children().map(proxy => this._pairs.find(pair => pair.proxy === proxy).item));
     }
 
     _activate(item) {

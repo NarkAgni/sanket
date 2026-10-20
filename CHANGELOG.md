@@ -1,3 +1,24 @@
+## [1.2] - 20-10-2026
+
+### Notification island
+* The island now takes its look from Quick Settings in your shell theme: same corners, background, border and padding, and it follows along if the theme or another extension changes Quick Settings
+* The island is now exactly as wide as Quick Settings with every shell theme
+* Works properly in both light and dark mode; no more fixed white highlights that disappear on light themes
+* The **Clear** and **More Notifications** buttons and the pin button now use your theme's own button styles
+* Shell themes that style notifications inside menus now style the island too
+
+### Rearrange toggles
+* New **edit** button next to the Settings button in Quick Settings: tap it, then drag any toggle to a new spot, both as a pill and as a circle in compact mode; the others slide out of the way and the order is remembered across restarts
+* Toggles don't switch on or off while editing, so you can't flip one by accident; tap the checkmark or close Quick Settings to finish
+* While editing, toggles get an outline in your theme's text color, so it shows up in light and dark mode alike
+* Toggles added later by other extensions keep their place until you move them
+
+### Compact Quick Settings
+* Wi-Fi, Bluetooth, Power Mode and other toggles with a menu now turn into circles on GNOME 45, 46 and 47 too
+
+### Calendar
+* World clock page dots use your theme's text color and stay visible in light mode
+
 ## [1.1] - 20-10-2026
 
 ### Compact Quick Settings
