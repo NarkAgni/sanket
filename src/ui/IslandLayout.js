@@ -35,7 +35,7 @@ function offsetIn(actor, ancestor) {
     let x = 0;
     let y = 0;
     for (let current = actor; current !== ancestor; current = current.get_parent()) {
-        const box = current.get_allocation_box();
+        const box = current.allocation;
         x += box.x1;
         y += box.y1;
     }
@@ -81,9 +81,21 @@ class IslandLayout extends Clutter.LayoutManager {
         return CARD_GAP * scaleFactor();
     }
 
+    opensUpward() {
+        const [, sourceY] = this._source.get_transformed_position();
+        const workArea = Main.layoutManager.getWorkAreaForMonitor(Main.layoutManager.findIndexForActor(this._source));
+        return sourceY + this._source.height / 2 > workArea.y + workArea.height / 2;
+    }
+
+    menuRoom() {
+        const monitor = Main.layoutManager.findIndexForActor(this._source);
+        const workArea = Main.layoutManager.getWorkAreaForMonitor(monitor);
+        return workArea.height - 2 * SCREEN_MARGIN * scaleFactor();
+    }
+
     stackRoom() {
         const qs = this._qsRect();
-        const above = this._isAbove(qs);
+        const above = this.opensUpward();
         return this._spaceFrom(above ? qs.screenTop + qs.height : qs.screenTop, above);
     }
 
@@ -97,9 +109,12 @@ class IslandLayout extends Clutter.LayoutManager {
 
     vfunc_allocate(container) {
         const card = container.get_first_child();
+        if (!card)
+            return;
+
         const inset = insetsOf(card);
         const qs = this._qsRect();
-        const above = this._isAbove(qs);
+        const above = this.opensUpward();
         const gap = this.gap;
         const edge = above ? qs.screenTop : qs.screenTop + qs.height;
         const room = Math.max(this._spaceFrom(edge, above) - gap, 0) + inset.top + inset.bottom;
@@ -128,14 +143,9 @@ class IslandLayout extends Clutter.LayoutManager {
         const painted = (hasColor && color.alpha > 0) || node.get_length('-arrow-border-width') > 0;
         const frame = painted ? this._boxPointer : this._qsBox;
         const [x, y] = offsetIn(frame, this._menuActor);
-        const box = frame.get_allocation_box();
+        const box = frame.allocation;
         const rect = {x, y, width: box.get_width(), height: box.get_height()};
         return painted ? trimRise(rect, node.get_length('-arrow-rise'), this._boxPointer._arrowSide) : rect;
-    }
-
-    _isAbove(qs) {
-        const [, sourceY] = this._source.get_transformed_position();
-        return sourceY + this._source.height / 2 > qs.screenTop + qs.height / 2;
     }
 
     _spaceFrom(edge, above) {

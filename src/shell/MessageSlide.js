@@ -21,7 +21,7 @@ import Clutter from 'gi://Clutter';
 import {InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {easeTo} from '../ui/Animations.js';
-import {CHILD_ADDED} from '../lib/Utils.js';
+import {CHILD_ADDED, isActorAlive} from '../lib/Utils.js';
 
 
 const SLIDE_DURATION = 240;
@@ -40,6 +40,18 @@ function groupItemOf(group, notification) {
     return group._notificationToMessage.get(notification).get_parent();
 }
 
+function stackBelow(group) {
+    const [, , ...rest] = group.get_children();
+    return rest.slice(0, -1);
+}
+
+function resetCard(card) {
+    card.remove_transition('translation-y');
+    card.remove_transition('scale-x');
+    card.translation_y = 0;
+    card.scale_x = 1;
+}
+
 export class MessageSlide {
     constructor(messageList) {
         this._injections = new InjectionManager();
@@ -48,12 +60,12 @@ export class MessageSlide {
         this._view = messageList._messageView;
 
         if (this._view) {
-            this._patch(this._view, '_removeMessage', parentOf);
+            this._patch(this._view, '_removeMessage', parentOf, () => true);
             this._view.connectObject(CHILD_ADDED, (_view, item) => this._watchGroup(item.child), this);
             this._view.get_children().forEach(item => this._watchGroup(item.child));
         } else {
             [messageList._mediaSection, messageList._notificationSection].forEach(section =>
-                this._patch(section, 'removeMessage', parentOf));
+                this._patch(section, 'removeMessage', parentOf, () => true));
         }
     }
 
@@ -77,10 +89,33 @@ export class MessageSlide {
             return;
 
         this._patched.add(prototype);
-        this._patch(prototype, '_removeNotification', groupItemOf);
+        this._patch(prototype, '_removeNotification', groupItemOf, (group, item) => this._prepareGroup(group, item));
     }
 
-    _patch(target, method, findItem) {
+    _prepareGroup(group, item) {
+        if (group.expanded)
+            return true;
+        if (group.get_first_child() !== item)
+            return false;
+
+        const stack = stackBelow(group);
+        let target = item.allocation;
+        stack.forEach((card, index) => {
+            const box = card.allocation;
+            const y = index === 0 ? target.y1 : target.y2 - box.get_height();
+            card.set_pivot_point(0.5, 0);
+            easeTo(card, {
+                translation_y: y - box.y1,
+                scale_x: target.get_width() / Math.max(box.get_width(), 1),
+            }, null, SLIDE_DURATION, SLIDE_MODE);
+            target = box;
+        });
+
+        item.connectObject('destroy', () => stack.filter(isActorAlive).forEach(resetCard), this);
+        return true;
+    }
+
+    _patch(target, method, findItem, prepare) {
         const leaving = this._leaving;
 
         this._injections.overrideMethod(target, method, original => function (subject, animate = true) {
@@ -88,7 +123,7 @@ export class MessageSlide {
             if (leaving.has(item))
                 return;
 
-            if (!animate || item.translation_x !== 0) {
+            if (!animate || item.translation_x !== 0 || !prepare(this, item)) {
                 original.call(this, subject, animate);
                 return;
             }

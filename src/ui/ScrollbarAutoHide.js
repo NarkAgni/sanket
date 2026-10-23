@@ -58,6 +58,18 @@ export class ScrollbarAutoHide {
         this.reset();
     }
 
+    get adjustment() {
+        return this._scrollBar.adjustment;
+    }
+
+    get barWidth() {
+        return this._mode === 'never' ? 0 : this._scrollBar.get_preferred_width(-1)[1];
+    }
+
+    setOffset(offset) {
+        this._scrollBar.translation_x = offset;
+    }
+
     setMode(mode) {
         this._mode = mode;
         this.reset();
@@ -78,6 +90,7 @@ export class ScrollbarAutoHide {
         this._scrollView.disconnectObject(this);
         stopFade(this._scrollBar);
         this._scrollBar.reactive = true;
+        this._scrollBar.translation_x = 0;
         this._scrollBar = null;
         this._scrollView = null;
     }

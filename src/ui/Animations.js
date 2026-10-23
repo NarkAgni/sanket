@@ -25,6 +25,8 @@ import {isActorAlive} from '../lib/Utils.js';
 export const DURATION = 280;
 export const FAST_DURATION = 180;
 export const MODE = Clutter.AnimationMode.EASE_OUT_EXPO;
+export const MORPH_DURATION = 480;
+export const MORPH_MODE = Clutter.AnimationMode.EASE_OUT_QUART;
 
 const targets = new WeakMap();
 let speed = 1;
@@ -118,9 +120,12 @@ export function stopRotation(actor, angle) {
 }
 
 export function measureHeight(actor) {
+    const width = actor.allocation.get_width() || actor.get_parent().allocation.get_width();
+    if (!actor.layout_manager)
+        return actor.get_preferred_height(width)[1];
+
     const node = actor.get_theme_node();
-    const width = node.adjust_for_width(actor.get_allocation_box().get_width());
-    const [, natural] = actor.layout_manager.get_preferred_height(actor, width);
+    const [, natural] = actor.layout_manager.get_preferred_height(actor, node.adjust_for_width(width));
     return node.adjust_preferred_height(0, natural)[1];
 }
 
@@ -129,17 +134,26 @@ export class HeightAnimator {
         this._actor = actor;
         this._duration = duration;
         this._mode = mode;
+        this._target = 0;
+    }
+
+    get running() {
+        return this._actor.natural_height_set;
+    }
+
+    get target() {
+        return this._target;
     }
 
     naturalHeight() {
         return measureHeight(this._actor);
     }
 
-    animate(fromHeight) {
-        const from = this._actor.natural_height_set ? this._actor.natural_height : fromHeight;
-        const to = this.naturalHeight();
-
+    animate(from) {
         this._actor.remove_transition('height');
+        this._actor.height = -1;
+        const to = this.naturalHeight();
+        this._target = to;
         if (Math.abs(from - to) < 1) {
             this.stop();
             return;

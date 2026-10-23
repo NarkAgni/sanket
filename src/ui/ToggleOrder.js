@@ -22,8 +22,8 @@ import GLib from 'gi://GLib';
 import * as Signals from 'resource:///org/gnome/shell/misc/signals.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {ReorderDrag, slideReorder} from './ReorderDrag.js';
 import {TimeoutTracker} from '../lib/TimeoutTracker.js';
+import {ReorderDrag, slideReorder} from './ReorderDrag.js';
 import {CHILD_ADDED, CHILD_REMOVED, tintOf} from '../lib/Utils.js';
 import {arrange, gridToggles, isToggle, mergeOrder, moveOnto, placeToggles, toggleKeys} from '../lib/Toggles.js';
 

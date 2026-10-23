@@ -1,3 +1,71 @@
+## [2.0] - 23-10-2026
+
+A big update: notifications can now live in three different places, Quick Settings can stay compact the way you like, and every animation has been reworked to stay smooth even with a long list of notifications.
+
+### New
+
+#### Choose where notifications appear
+* **Floating Island**: the familiar card next to Quick Settings
+* **Inside Quick Settings**: notifications become part of Quick Settings itself, like in the GNOME design mockups (#3)
+  * With a top bar they sit below the toggles with the **Clear** and **More Notifications** row right above them; with a bottom panel or dock they sit on top, just like the floating island
+  * A thin separator divides toggles and notifications when the notifications are above
+* **In the Calendar**: notifications stay in the date menu, next to the calendar (#7)
+  * As the list grows, Events, World Clocks and Weather slide one by one below the calendar so the date menu keeps its size; once all of them have moved, the list simply scrolls
+  * Only cards you actually use take part, so it adapts if you have no weather location or world clocks set
+  * In the Stacked layout notifications get their own column on the left with everything else stacked under the calendar
+
+inside-quick-settings.png
+in-the-calendar.png
+
+#### Compact Quick Settings, your way
+* Three modes: **When Needed** (circles only when notifications need room), **Always**, and the new **On Demand**
+* **On Demand** keeps Quick Settings compact and adds an expand button next to the edit button; tap it to switch between circles and full toggles. Your choice is remembered the next time you open Quick Settings
+* **One Row** or **Two Rows** of circles: one row shows up to six toggles, two rows fit six per row and nothing is ever hidden
+
+on-demand.png
+
+#### Stacked notifications
+* When notifications are collapsed, thin card edges peek out under the newest one so you can see at a glance that more are waiting, just like the mockups
+* Notifications from the same app are grouped into one stacked card on GNOME 48 and newer; click it to open them all
+  * This now also works for apps that send every notification from a new process, like `notify-send` or Flameshot, which GNOME would otherwise show as separate cards
+* While an app's stack is open, its collapse button sits in the bottom row right before **Show Less**, labelled with the app's name, so you never have to scroll back up to close it
+* When only one app has notifications, **More Notifications** opens its stack directly
+
+stack-hint.png
+
+#### Pictures in notifications
+* Photos sent with a notification, like a contact's avatar or a screenshot preview, now appear as a round thumbnail on the right side of the card, like in the mockups
+* Pictures of any shape are cropped to fill the circle; app icons keep their usual look
+
+### Improved
+* All island, toggle and calendar animations now share one timing, so expanding, collapsing and switching between pills and circles move together as one smooth motion
+* Opening or closing an app's stack now morphs Quick Settings between pills and circles at the same time, instead of one after the other
+* Expanding a long list is much faster: only the notifications you can actually see are animated, and their text is prepared in advance
+* Pills and circles now track their real position on every frame while morphing, so they never drift or fall in from the wrong side
+* When you dismiss the top notification while the list is collapsed, the next one takes its place without growing in again
+* When you dismiss the top card of a collapsed app stack, the cards behind it glide up into place while it slides away, instead of jumping at the end
+* **Show Less** no longer appears when only one notification is left
+* The **Clear** button is now flat like **More Notifications**, with a background only on hover
+* The expand arrow on long notifications gets your theme's button background again
+* Thinner scrollbar that sits right at the edge instead of covering notifications, in every layout
+* The calendar's notification column is a little wider, and widens a bit more while the list scrolls, so nothing is cut off
+* Quick Settings system buttons are slightly smaller so the extra expand button fits comfortably
+* Rearranging toggles works across both rows of circles
+
+### Fixed
+* Works together with **Quick Settings Scroll**: the island, toggles and circles no longer disappear when a notification arrives (#5)
+* Works together with **Blur my Shell**: the floating island is blurred like Quick Settings again, and Blur my Shell no longer throws errors on Sanket's stacked cards
+* The floating island now opens exactly above or below Quick Settings, without sliding in from the side, and fades in together with Quick Settings instead of flashing for a moment before it
+* Notifications open on the correct side of Quick Settings from the very first time after login, also with a panel or dock at the bottom
+* Closing one notification in a collapsed app stack now removes only that notification, not the whole stack
+* Clicking a notification no longer clears every other notification from the same app; notifications now only go away when you close or clear them
+* The battery percentage is no longer squeezed when Quick Settings starts in compact mode
+* Quick Settings no longer shakes while expanding or collapsing with notifications inside it
+* Quick Settings can no longer grow past the edge of the screen when many notifications are shown inside it
+* No more scrollbar on a single collapsed notification in the calendar
+* Stacked card edges no longer blink when hovering a notification
+* Removed several "needs an allocation", "already disposed" and invalid margin warnings from the system log
+
 ## [1.2] - 20-10-2026
 
 ### Notification island

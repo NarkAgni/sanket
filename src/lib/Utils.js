@@ -52,6 +52,13 @@ export function detachActor(actor) {
     };
 }
 
+export function childContaining(parent, actor) {
+    let child = actor;
+    while (child.get_parent() !== parent)
+        child = child.get_parent();
+    return child;
+}
+
 export function isActorAlive(actor) {
     if (!actor)
         return false;

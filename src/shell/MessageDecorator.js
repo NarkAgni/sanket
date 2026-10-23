@@ -20,11 +20,18 @@
 import St from 'gi://St';
 import Pango from 'gi://Pango';
 import Clutter from 'gi://Clutter';
+import GObject from 'gi://GObject';
 import * as MessageTray from 'resource:///org/gnome/shell/ui/messageTray.js';
 import {InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {isActorAlive} from '../lib/Utils.js';
+import {CoverLayout, ImageMask, coverRatio} from '../ui/ImageMask.js';
 import {centerPivot, fadeTo, rotateTo, stopFade, stopRotation} from '../ui/Animations.js';
+
+
+const IMAGE_CLASS = 'sanket-message-image';
+const FRAME_CLASS = 'sanket-message-image-frame';
+const IMAGE_SIZE = 40;
 
 
 function hasClass(actor, styleClass) {
@@ -39,6 +46,16 @@ function findCloseButtons(actor, found = []) {
             found.push(child);
         else
             findCloseButtons(child, found);
+    }
+    return found;
+}
+
+function findImages(actor, found = []) {
+    for (const child of actor.get_children()) {
+        if (hasClass(child, 'message-icon'))
+            found.push(child);
+        else
+            findImages(child, found);
     }
     return found;
 }
@@ -104,6 +121,7 @@ export class MessageDecorator {
         this._pinned = new WeakSet();
         this._decorated = new WeakSet();
         this._entries = new Map();
+        this._images = new Map();
         this._order = createOrderAdapter(messageList);
 
         const decorator = this;
@@ -113,12 +131,23 @@ export class MessageDecorator {
                     return original.call(this, message, decorator._indexFor(message, index), ...rest);
                 }));
 
+        this._activating = false;
         this._injections.overrideMethod(MessageTray.Notification.prototype, 'activate', original =>
             function () {
                 const resident = this.resident;
                 this.resident = true;
-                original.call(this);
-                this.resident = resident;
+                decorator._activating = true;
+                try {
+                    original.call(this);
+                } finally {
+                    decorator._activating = false;
+                    this.resident = resident;
+                }
+            });
+        this._injections.overrideMethod(MessageTray.Source.prototype, 'destroyNonResidentNotifications', original =>
+            function () {
+                if (!decorator._activating)
+                    original.call(this);
             });
     }
 
@@ -130,6 +159,9 @@ export class MessageDecorator {
         findCloseButtons(message)
             .filter(closeButton => !this._decorated.has(closeButton))
             .forEach(closeButton => this._addEntry(message, closeButton));
+        findImages(message)
+            .filter(image => !this._images.has(image))
+            .forEach(image => this._placeImage(image));
     }
 
     unexpandAll() {
@@ -143,8 +175,11 @@ export class MessageDecorator {
         this._injections.clear();
         [...this._entries.values()].forEach(entry => this._cleanupEntry(entry, true));
         this._entries.clear();
+        this._images.forEach((placed, image) => this._restoreImage(image, placed));
+        this._images.clear();
 
         this._injections = null;
+        this._images = null;
         this._entries = null;
         this._pinned = null;
         this._decorated = null;
@@ -157,6 +192,7 @@ export class MessageDecorator {
             return;
 
         this._entries.delete(entry.pin);
+        this._injections.restoreMethod(entry.owner, 'close');
 
         [entry.owner, entry.pin, entry.closeButton, entry.expandButton]
             .filter(isActorAlive)
@@ -182,6 +218,50 @@ export class MessageDecorator {
         }
     }
 
+    _placeImage(image) {
+        const frame = new St.Widget({
+            style_class: FRAME_CLASS,
+            style: `width: ${IMAGE_SIZE}px; height: ${IMAGE_SIZE}px;`,
+            clip_to_allocation: true,
+            y_align: Clutter.ActorAlign.CENTER,
+            layout_manager: new CoverLayout(),
+        });
+        const mask = new ImageMask();
+        const parent = image.get_parent();
+
+        parent.insert_child_above(frame, image.get_next_sibling());
+        parent.remove_child(image);
+        frame.add_child(image);
+        frame.add_effect(mask);
+        image.add_style_class_name(IMAGE_CLASS);
+
+        const binding = image.bind_property('visible', frame, 'visible', GObject.BindingFlags.SYNC_CREATE);
+        const sync = () => {
+            mask.enabled = !image.is_symbolic;
+            image.icon_size = image.is_symbolic ? -1 : Math.round(IMAGE_SIZE * coverRatio(image.gicon));
+        };
+
+        this._images.set(image, {frame, binding});
+        image.connectObject(
+            'notify::gicon', sync,
+            'notify::is-symbolic', sync,
+            'destroy', () => this._images.delete(image),
+            this);
+        sync();
+    }
+
+    _restoreImage(image, {frame, binding}) {
+        image.disconnectObject(this);
+        binding.unbind();
+        image.icon_size = -1;
+        image.remove_style_class_name(IMAGE_CLASS);
+
+        const parent = frame.get_parent();
+        frame.remove_child(image);
+        parent.insert_child_below(image, null);
+        frame.destroy();
+    }
+
     _addEntry(message, closeButton) {
         const owner = findOwner(closeButton);
         const header = closeButton.get_parent();
@@ -205,6 +285,14 @@ export class MessageDecorator {
             expanded: Boolean(owner.expanded),
         };
         entry.clips = entry.bodies.map(body => body.clip_to_allocation);
+        this._injections.overrideMethod(owner, 'close', original => function () {
+            if (this.notification) {
+                this._closed = true;
+                this.notification.destroy(MessageTray.NotificationDestroyedReason.DISMISSED);
+            } else {
+                original.call(this);
+            }
+        });
         const sync = () => this._syncButtons(entry, true);
 
         if (expandButton) {
@@ -235,7 +323,14 @@ export class MessageDecorator {
             body.clip_to_allocation = true;
             applyExpansion(body);
             body.layout_manager.connectObject('notify::expansion', () => applyExpansion(body), this);
-            body.connectObject('notify::allocation', sync, this);
+            let width = -1;
+            body.connectObject('notify::allocation', () => {
+                const current = body.allocation.get_width();
+                if (current !== width) {
+                    width = current;
+                    sync();
+                }
+            }, this);
             const text = textOf(body);
             if (text)
                 text.connectObject('notify::text', sync, this);
@@ -286,7 +381,7 @@ export class MessageDecorator {
             if (layout && (layout.is_ellipsized() || layout.get_line_count() > 1))
                 return true;
 
-            const width = body.get_allocation_box().get_width();
+            const width = body.allocation.get_width();
             const [, naturalWidth] = text.get_preferred_width(-1);
             return (width > 0 && naturalWidth > width) || text.text.includes('\n');
         });

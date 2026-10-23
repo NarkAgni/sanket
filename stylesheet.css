@@ -18,7 +18,20 @@
     border-width: 0;
 }
 
+.sanket-calendar-column.sanket-calendar-side {
+    min-width: 22em;
+}
+
+.sanket-calendar-column.sanket-calendar-side.sanket-calendar-scrolling {
+    min-width: 22.5em;
+}
+
+.sanket-notif-card StScrollView StScrollBar StButton#vhandle {
+    border-width: 1px;
+}
+
 .sanket-notif-card StScrollView StScrollBar {
+    min-width: 5px;
     margin-top: 16px;
     margin-bottom: 16px;
     padding-top: 16px;
@@ -37,7 +50,43 @@
     margin: 0;
 }
 
+.sanket-notif-card.sanket-controls-top .message-list-controls {
+    padding: 0 0 6px;
+}
+
+.sanket-notif-merged.sanket-merged-below {
+    margin-top: 12px;
+}
+
+.sanket-notif-merged.sanket-merged-above {
+    margin-bottom: 12px;
+}
+
+.sanket-merged-below .sanket-merged-separator {
+    margin-bottom: 12px;
+}
+
+.sanket-merged-above .sanket-merged-separator {
+    margin-top: 12px;
+}
+
+.sanket-notif-island.sanket-notif-calendar {
+    padding: 4px 4px 0;
+}
+
+.quick-settings-system-item > StBoxLayout {
+    spacing: 8px;
+}
+
+.quick-settings-system-item .icon-button {
+    padding: 8px;
+}
+
 .sanket-more-pill-content {
+    spacing: 6px;
+}
+
+.sanket-pill-row {
     spacing: 6px;
 }
 
@@ -47,10 +96,6 @@
 }
 
 .sanket-compact-grid {
-    spacing: 12px;
-}
-
-.sanket-compact-row {
     spacing: 12px;
 }
 
@@ -96,14 +141,12 @@
     border-radius: 999px;
 }
 
-.sanket-notif-card .message .message-header .message-expand-button,
-.sanket-notif-card .message .message-header .message-expand-button:hover,
-.sanket-notif-card .message .message-header .message-expand-button:active,
-.sanket-notif-card .message .message-header .message-expand-button:focus {
-    background-color: transparent !important;
-    background-image: none !important;
-    border-color: transparent !important;
-    box-shadow: none !important;
+.sanket-stack {
+    spacing: 0;
+}
+
+.sanket-stack-peek {
+    height: 6px;
 }
 
 .sanket-calendar-panel {
@@ -199,4 +242,22 @@
 
 .sanket-weather-card.sanket-setup-hint .sanket-weather-summary {
     font-weight: normal;
+}
+
+.message .message-icon.sanket-message-image:ltr,
+.message .message-icon.sanket-message-image:rtl {
+    margin: 0;
+}
+
+.message .message-icon.sanket-message-image.message-themed-icon {
+    min-width: 40px;
+    min-height: 40px;
+}
+
+.sanket-message-image-frame:ltr {
+    margin-left: 12px;
+}
+
+.sanket-message-image-frame:rtl {
+    margin-right: 12px;
 }

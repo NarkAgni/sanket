@@ -36,6 +36,10 @@ export class DateMenuLayout {
         quickSettings._indicators.insert_child_at_index(dateMenu._indicator, 0);
     }
 
+    get calendarPanel() {
+        return this._panel;
+    }
+
     destroy() {
         this._panel.destroy();
         this._panel = null;

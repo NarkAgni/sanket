@@ -20,8 +20,9 @@
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {MessageSlide} from './src/shell/MessageSlide.js';
 import {ToggleOrder} from './src/ui/ToggleOrder.js';
+import {SourceMerge} from './src/shell/SourceMerge.js';
+import {MessageSlide} from './src/shell/MessageSlide.js';
 import {setAnimationSpeed} from './src/ui/Animations.js';
 import {CompactToggles} from './src/ui/CompactToggles.js';
 import {DateMenuLayout} from './src/shell/DateMenuLayout.js';
@@ -38,15 +39,18 @@ export default class SanketExtension extends Extension {
 
         this._dateMenuLayout = new DateMenuLayout(dateMenu, quickSettings, this._settings);
         this._messageSlide = new MessageSlide(dateMenu._messageList);
+        this._sourceMerge = new SourceMerge();
         this._toggleOrder = new ToggleOrder(quickSettings.menu, this._settings);
         this._compactToggles = new CompactToggles(quickSettings.menu, this._settings, this._toggleOrder);
-        this._island = new NotificationIsland(quickSettings.menu, dateMenu, this._compactToggles, this._settings);
+        this._island = new NotificationIsland(quickSettings.menu, dateMenu, this._compactToggles,
+            this._dateMenuLayout.calendarPanel, this._settings);
     }
 
     disable() {
         this._island.destroy();
         this._compactToggles.destroy();
         this._toggleOrder.destroy();
+        this._sourceMerge.destroy();
         this._messageSlide.destroy();
         this._dateMenuLayout.destroy();
 
@@ -56,6 +60,7 @@ export default class SanketExtension extends Extension {
         this._island = null;
         this._compactToggles = null;
         this._toggleOrder = null;
+        this._sourceMerge = null;
         this._messageSlide = null;
         this._dateMenuLayout = null;
         this._settings = null;

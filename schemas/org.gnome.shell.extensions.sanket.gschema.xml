@@ -70,5 +70,42 @@
             <summary>Quick Settings toggle order</summary>
             <description>Order of Quick Settings toggles, set by dragging them</description>
         </key>
+
+        <key name="compact-mode" type="s">
+            <choices>
+                <choice value="auto"/>
+                <choice value="always"/>
+                <choice value="demand"/>
+            </choices>
+            <default>'auto'</default>
+            <summary>When Quick Settings toggles turn into circles</summary>
+        </key>
+
+        <key name="notification-layout" type="s">
+            <choices>
+                <choice value="island"/>
+                <choice value="merged"/>
+                <choice value="calendar"/>
+            </choices>
+            <default>'island'</default>
+            <summary>Where notifications appear</summary>
+            <description>In a floating island next to Quick Settings, inside Quick Settings, or in the calendar</description>
+        </key>
+
+        <key name="compact-layout" type="s">
+            <choices>
+                <choice value="single"/>
+                <choice value="double"/>
+            </choices>
+            <default>'single'</default>
+            <summary>Rows of compact toggles</summary>
+            <description>Show the circular toggles in one row or split over two rows</description>
+        </key>
+
+        <key name="compact-expanded" type="b">
+            <default>false</default>
+            <summary>Quick Settings expanded in On Demand mode</summary>
+            <description>Remembers whether Quick Settings were last expanded or collapsed in On Demand mode</description>
+        </key>
     </schema>
 </schemalist>
