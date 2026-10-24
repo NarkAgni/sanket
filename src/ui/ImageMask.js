@@ -21,7 +21,11 @@ import Cogl from 'gi://Cogl';
 import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
 import GdkPixbuf from 'gi://GdkPixbuf';
+import { PACKAGE_VERSION } from 'resource:///org/gnome/shell/misc/config.js';
 
+
+const SHELL_MAJOR = parseInt(PACKAGE_VERSION.split('.')[0], 10);
+const USE_STATIC_SNIPPET = SHELL_MAJOR >= 51;
 
 const DECLARATIONS = `
 uniform sampler2D tex;
@@ -35,6 +39,14 @@ float alpha = 1.0 - smoothstep(-feather, 0.0, dist);
 cogl_color_out = cogl_color_in * texture2D(tex, uv) * alpha;
 `;
 
+const FULL_FRAGMENT_SHADER = `
+${DECLARATIONS}
+
+void main() {
+${SOURCE}
+}
+`;
+
 function aspectOf(gicon) {
     if (!gicon)
         return 1;
@@ -44,7 +56,10 @@ function aspectOf(gicon) {
         return 1;
 
     const path = gicon.get_file().get_path();
-    const [, width, height] = path ? GdkPixbuf.Pixbuf.get_file_info(path) : [null, 0, 0];
+    if (!path)
+        return 1;
+
+    const [, width, height] = GdkPixbuf.Pixbuf.get_file_info(path);
     return width > 0 && height > 0 ? width / height : 1;
 }
 
@@ -77,16 +92,42 @@ class CoverLayout extends Clutter.LayoutManager {
     }
 });
 
+const MaskShaderBase = USE_STATIC_SNIPPET
+    ? GObject.registerClass(
+        class MaskShaderBase extends Clutter.ShaderEffect {
+            vfunc_get_static_snippet() {
+                const snippet = Cogl.Snippet.new(Cogl.SnippetHook.FRAGMENT, DECLARATIONS, null);
+                snippet.set_replace(SOURCE);
+                return snippet;
+            }
+        })
+    : Clutter.ShaderEffect;
+
 export const ImageMask = GObject.registerClass(
-class ImageMask extends Clutter.ShaderEffect {
-    vfunc_get_static_snippet() {
-        const snippet = Cogl.Snippet.new(Cogl.SnippetHook.FRAGMENT, DECLARATIONS, null);
-        snippet.set_replace(SOURCE);
-        return snippet;
+class ImageMask extends MaskShaderBase {
+    _init(params = {}) {
+        super._init(params);
+
+        if (!USE_STATIC_SNIPPET)
+            this.set_shader_source(FULL_FRAGMENT_SHADER);
+
+        this._feather = 0;
+    }
+
+    _setFloatUniform(name, val) {
+        const gval = new GObject.Value();
+        gval.init(GObject.TYPE_FLOAT);
+        gval.set_float(val);
+        this.set_uniform_value(name, gval);
     }
 
     vfunc_paint_target(node, paintContext) {
-        this.set_uniform_float('feather', 1, [1 / Math.max(this.get_actor().width, 1)]);
+        const feather = 1 / Math.max(this.get_actor().width, 1);
+        if (feather !== this._feather) {
+            this._feather = feather;
+            this._setFloatUniform('feather', feather);
+        }
+
         super.vfunc_paint_target(node, paintContext);
     }
 });
