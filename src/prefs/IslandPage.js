@@ -24,7 +24,7 @@ import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions
 import {onSettingChanged} from './SettingsSignals.js';
 import {
     accentColor, addArt, addChoiceCards, addGroup, addGroupReset, addSwitchRow, fillRect, paintBackdrop,
-    paintCard, roundedRect, watchAccent,
+    paintCard, roundedRect, showWhen, watchAccent,
 } from './PrefsWidgets.js';
 
 
@@ -302,16 +302,20 @@ export function buildIslandPage(window, settings) {
 
     const quickGroup = addGroup(page, _('Compact Quick Settings'),
         _('Toggles collapse into circles, up to six in a row'));
-    addGroupReset(quickGroup, settings, ['compact-mode', 'compact-layout', ...SLIDERS.map(([key]) => key)]);
+    addGroupReset(quickGroup, settings,
+        ['compact-mode', 'compact-layout', 'compact-remember-expanded', ...SLIDERS.map(([key]) => key)]);
     addChoiceCards(quickGroup, settings, 'compact-mode', [
         {value: 'auto', title: _('When Needed'), description: _('Only when notifications need room'), art: compactArt('auto')},
         {value: 'always', title: _('Always'), description: _('Circles all the time, like on phones'), art: compactArt('always')},
-        {value: 'demand', title: _('On Demand'), description: _('Circles until you tap Expand Settings'), art: compactArt('demand')},
+        {value: 'demand', title: _('On Demand'), description: _('Circles until you tap Expand Settings or scroll down'), art: compactArt('demand')},
     ]);
     addChoiceCards(quickGroup, settings, 'compact-layout', [
         {value: 'single', title: _('One Row'), description: _('Up to six circles, the rest stay hidden'), art: rowsArt(1)},
         {value: 'double', title: _('Two Rows'), description: _('Six per row, the rest on a second row'), art: rowsArt(2)},
     ]);
+    const rememberRow = addSwitchRow(quickGroup, settings, 'compact-remember-expanded', _('Remember Expanded State'),
+        _('Reopen Quick Settings the way you left them instead of always collapsed'));
+    showWhen(rememberRow, settings, ['compact-mode'], () => settings.get_string('compact-mode') === 'demand');
     addSwitchRow(quickGroup, settings, 'compact-show-volume', _('Volume'),
         _('Keep the volume slider while the toggles are collapsed'));
     addSwitchRow(quickGroup, settings, 'compact-show-brightness', _('Brightness'),

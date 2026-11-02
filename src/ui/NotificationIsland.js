@@ -690,7 +690,7 @@ export class NotificationIsland {
         }, this);
         this._compactToggles.resizing.forEach(actor =>
             actor.connectObject('notify::height', () => this._applyCardHeight(), this));
-        this._compactToggles.connectObject('demand-changed', () => this._sync(true), this);
+        this._compactToggles.connectObject('demand-changed', () => this._sync(this._menu.isOpen), this);
         this._boxPointer.connectObject('queue-relayout', () => this._holder.queue_relayout(), this);
         this._lists.forEach(list => list.connectObject(CHILD_ADDED, sync, CHILD_REMOVED, sync, this));
 
