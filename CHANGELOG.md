@@ -1,3 +1,22 @@
+## [2.0.1] - 03-11-2026
+
+### New
+
+#### User avatar in Quick Settings
+* Your profile picture now sits in the Quick Settings system row, as tall as the battery and the buttons beside it (#12)
+* Choose a **Pill** with your picture and name, or a **Circle** with only the picture, like the other buttons
+* Clicking it opens the Users page in Settings, or does nothing if you prefer
+* New **Avatar** page in the settings window with a live preview:
+  * Picture size from 50% to 100% of the button
+  * Full name or username next to the picture
+  * Place it at the left or the right of the system row
+  * Turn it off if another extension already adds an avatar
+
+### Fixed
+* The expand and edit buttons in Quick Settings are no longer taller than the other system buttons (#13)
+* The floating island no longer has a bigger gap below the last notification than on the other sides (#13)
+* Added the missing space between the Compact Quick Settings options in the settings window
+
 ## [2.0] - 23-10-2026
 
 A big update: notifications can now live in three different places, Quick Settings can stay compact the way you like, and every animation has been reworked to stay smooth even with a long list of notifications.

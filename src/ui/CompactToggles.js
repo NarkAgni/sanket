@@ -339,6 +339,7 @@ export class CompactToggles extends Signals.EventEmitter {
         this._expandButton = new St.Button({
             style_class: 'icon-button sanket-expand-button',
             can_focus: true,
+            y_align: Clutter.ActorAlign.CENTER,
             child: this._expandIcon,
         });
         this._expandButton.connectObject('clicked', () => this._setDemand(!this._userExpanded), this);

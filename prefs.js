@@ -22,6 +22,7 @@ import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/ex
 import {buildAboutPage} from './src/prefs/AboutPage.js';
 import {setupHeaderBar} from './src/prefs/HeaderBar.js';
 import {buildIslandPage} from './src/prefs/IslandPage.js';
+import {buildAvatarPage} from './src/prefs/AvatarPage.js';
 import {buildCalendarPage} from './src/prefs/CalendarPage.js';
 import {buildAnimationsPage} from './src/prefs/AnimationsPage.js';
 import {disconnectSettingSignals} from './src/prefs/SettingsSignals.js';
@@ -34,6 +35,7 @@ export default class SanketPreferences extends ExtensionPreferences {
         window.set_default_size(720, 860);
 
         buildIslandPage(window, settings);
+        buildAvatarPage(window, settings);
         buildCalendarPage(window, settings);
         buildAnimationsPage(window, settings);
         buildAboutPage(this, window);

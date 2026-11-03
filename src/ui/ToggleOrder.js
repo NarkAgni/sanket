@@ -19,6 +19,7 @@
 
 import St from 'gi://St';
 import GLib from 'gi://GLib';
+import Clutter from 'gi://Clutter';
 import * as Signals from 'resource:///org/gnome/shell/misc/signals.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
@@ -102,6 +103,7 @@ export class ToggleOrder extends Signals.EventEmitter {
         this._editButton = new St.Button({
             style_class: 'icon-button sanket-edit-button',
             can_focus: true,
+            y_align: Clutter.ActorAlign.CENTER,
             accessible_name: _('Rearrange Toggles'),
             child: new St.Icon({icon_name: 'document-edit-symbolic'}),
         });

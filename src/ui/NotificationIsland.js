@@ -625,6 +625,20 @@ export class NotificationIsland {
         this._clipEdge = edge;
         this._scrollbar.setOffset(rtl ? -edge : edge);
         this._syncClip();
+        this._syncInset();
+    }
+
+    _syncInset() {
+        const card = this._merged || this._inCalendar || this._controls.visible ? null : findCard(this._messageList);
+        if (!card) {
+            this._panel.style = null;
+            return;
+        }
+
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        const top = this._panel.get_theme_node().get_padding(St.Side.TOP);
+        const inset = Math.max(top - card.get_theme_node().get_margin(St.Side.BOTTOM), 0);
+        this._panel.style = `padding-bottom: ${Math.round(inset / scale)}px;`;
     }
 
     _syncScrolling() {
@@ -820,6 +834,7 @@ export class NotificationIsland {
         const showControls = visible && (this._pill.visible || groupOpen);
         this._clearButton.visible = showControls;
         this._controls.visible = showControls;
+        this._syncInset();
 
         const mode = this._settings.get_string('compact-mode');
         const demanded = mode === 'demand' && !this._compactToggles.userExpanded;

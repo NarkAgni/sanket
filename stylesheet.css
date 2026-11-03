@@ -82,6 +82,23 @@
     padding: 8px;
 }
 
+.quick-settings-system-item .icon-button.sanket-user-item {
+    border-radius: 999px;
+}
+
+.sanket-user-box {
+    spacing: 8px;
+}
+
+.sanket-user-avatar {
+    border-radius: 999px;
+}
+
+.sanket-user-name {
+    font-weight: bold;
+    max-width: 9em;
+}
+
 .sanket-more-pill-content {
     spacing: 6px;
 }

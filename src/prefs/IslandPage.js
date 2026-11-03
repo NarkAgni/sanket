@@ -32,6 +32,7 @@ const PREVIEW_HEIGHT = 260;
 const TOGGLES = 6;
 const CHECKED_TOGGLES = [0, 1, 3];
 const SCROLLBAR_ALPHA = {auto: 0.3, always: 0.75, never: 0};
+const CARD_GAP = 12;
 const SLIDERS = [['compact-show-volume', 0.7], ['compact-show-brightness', 0.45]];
 
 function paintNotification(cr, x, y, width, height) {
@@ -304,15 +305,16 @@ export function buildIslandPage(window, settings) {
         _('Toggles collapse into circles, up to six in a row'));
     addGroupReset(quickGroup, settings,
         ['compact-mode', 'compact-layout', 'compact-remember-expanded', ...SLIDERS.map(([key]) => key)]);
-    addChoiceCards(quickGroup, settings, 'compact-mode', [
+    const modeCards = addChoiceCards(quickGroup, settings, 'compact-mode', [
         {value: 'auto', title: _('When Needed'), description: _('Only when notifications need room'), art: compactArt('auto')},
         {value: 'always', title: _('Always'), description: _('Circles all the time, like on phones'), art: compactArt('always')},
         {value: 'demand', title: _('On Demand'), description: _('Circles until you tap Expand Settings or scroll down'), art: compactArt('demand')},
     ]);
-    addChoiceCards(quickGroup, settings, 'compact-layout', [
+    const rowCards = addChoiceCards(quickGroup, settings, 'compact-layout', [
         {value: 'single', title: _('One Row'), description: _('Up to six circles, the rest stay hidden'), art: rowsArt(1)},
         {value: 'double', title: _('Two Rows'), description: _('Six per row, the rest on a second row'), art: rowsArt(2)},
     ]);
+    [modeCards, rowCards].forEach(cards => cards.set_margin_top(CARD_GAP));
     const rememberRow = addSwitchRow(quickGroup, settings, 'compact-remember-expanded', _('Remember Expanded State'),
         _('Reopen Quick Settings the way you left them instead of always collapsed'));
     showWhen(rememberRow, settings, ['compact-mode'], () => settings.get_string('compact-mode') === 'demand');

@@ -113,5 +113,56 @@
             <summary>Quick Settings expanded in On Demand mode</summary>
             <description>Remembers whether Quick Settings were last expanded or collapsed in On Demand mode</description>
         </key>
+
+        <key name="show-user-avatar" type="b">
+            <default>true</default>
+            <summary>Show the user avatar in Quick Settings</summary>
+            <description>Show your picture in the Quick Settings system row</description>
+        </key>
+
+        <key name="user-avatar-style" type="s">
+            <choices>
+                <choice value="pill"/>
+                <choice value="circle"/>
+            </choices>
+            <default>'circle'</default>
+            <summary>User avatar shape</summary>
+            <description>A pill with your picture and name, or a circle with only your picture</description>
+        </key>
+
+        <key name="user-avatar-position" type="s">
+            <choices>
+                <choice value="start"/>
+                <choice value="end"/>
+            </choices>
+            <default>'start'</default>
+            <summary>User avatar position</summary>
+            <description>Place the avatar at the start or the end of the system row</description>
+        </key>
+
+        <key name="user-avatar-size" type="d">
+            <range min="0.5" max="1.0"/>
+            <default>1.0</default>
+            <summary>User avatar picture size</summary>
+            <description>Size of the picture relative to the height of the system buttons</description>
+        </key>
+
+        <key name="user-avatar-name" type="s">
+            <choices>
+                <choice value="real"/>
+                <choice value="login"/>
+            </choices>
+            <default>'real'</default>
+            <summary>Name shown next to the user avatar</summary>
+        </key>
+
+        <key name="user-avatar-click" type="s">
+            <choices>
+                <choice value="users"/>
+                <choice value="none"/>
+            </choices>
+            <default>'users'</default>
+            <summary>What clicking the user avatar does</summary>
+        </key>
     </schema>
 </schemalist>

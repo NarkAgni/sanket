@@ -21,6 +21,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {ToggleOrder} from './src/ui/ToggleOrder.js';
+import {UserAvatar} from './src/ui/UserAvatar.js';
 import {SourceMerge} from './src/shell/SourceMerge.js';
 import {MessageSlide} from './src/shell/MessageSlide.js';
 import {setAnimationSpeed} from './src/ui/Animations.js';
@@ -42,12 +43,14 @@ export default class SanketExtension extends Extension {
         this._sourceMerge = new SourceMerge();
         this._toggleOrder = new ToggleOrder(quickSettings.menu, this._settings);
         this._compactToggles = new CompactToggles(quickSettings.menu, this._settings, this._toggleOrder);
+        this._userAvatar = new UserAvatar(quickSettings.menu, this._settings);
         this._island = new NotificationIsland(quickSettings.menu, dateMenu, this._compactToggles,
             this._dateMenuLayout.calendarPanel, this._settings);
     }
 
     disable() {
         this._island.destroy();
+        this._userAvatar.destroy();
         this._compactToggles.destroy();
         this._toggleOrder.destroy();
         this._sourceMerge.destroy();
@@ -58,6 +61,7 @@ export default class SanketExtension extends Extension {
         setAnimationSpeed(1);
 
         this._island = null;
+        this._userAvatar = null;
         this._compactToggles = null;
         this._toggleOrder = null;
         this._sourceMerge = null;
