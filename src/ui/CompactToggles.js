@@ -41,6 +41,7 @@ const TEXT_IN_DURATION = 260;
 const TEXT_OUT_DURATION = 150;
 const TEXT_FADE_MODE = Clutter.AnimationMode.EASE_IN_OUT_QUAD;
 const FADE_AWAY_DURATION = 200;
+const SCROLL_THRESHOLD = 1;
 
 function findChild(actor, match) {
     for (const child of actor.get_children()) {
@@ -296,10 +297,13 @@ export class CompactToggles extends Signals.EventEmitter {
     constructor(menu, settings, order) {
         super();
         this._settings = settings;
-        this._userExpanded = settings.get_boolean('compact-expanded');
+        this._userExpanded = settings.get_boolean('compact-remember-expanded') && settings.get_boolean('compact-expanded');
+        this._scrollDelta = 0;
         this._order = order;
         this._box = menu.box;
         this._grid = menu._grid;
+        this._gridReactive = this._grid.reactive;
+        this._grid.reactive = true;
         this._active = false;
         this._fullHeight = 0;
         this._excluded = null;
@@ -323,7 +327,7 @@ export class CompactToggles extends Signals.EventEmitter {
             layout_manager: new Clutter.GridLayout({column_homogeneous: true}),
         });
         this._circles.connectObject('style-changed', () => this._syncSpacing(), this);
-        this._actor = createBox(true, 'sanket-compact-box', {x_expand: true, visible: false});
+        this._actor = createBox(true, 'sanket-compact-box', {x_expand: true, visible: false, reactive: true});
         this._actor.add_child(this._circles);
         this._circlesHeight = new HeightAnimator(this._actor, MORPH_DURATION, MORPH_MODE);
         this._region = childContaining(this._box, this._grid);
@@ -337,7 +341,9 @@ export class CompactToggles extends Signals.EventEmitter {
             can_focus: true,
             child: this._expandIcon,
         });
-        this._expandButton.connectObject('clicked', () => this._toggleDemand(), this);
+        this._expandButton.connectObject('clicked', () => this._setDemand(!this._userExpanded), this);
+        this._menuActor = menu.actor;
+        this._menuActor.connectObject('scroll-event', (_actor, event) => this._onScroll(event), this);
         const row = this._grid.get_children().find(child =>
             Boolean(child.has_style_class_name) && child.has_style_class_name('quick-settings-system-item')).child;
         row.insert_child_below(this._expandButton, row.get_children().find(child =>
@@ -354,6 +360,7 @@ export class CompactToggles extends Signals.EventEmitter {
             if (!this._layer.mapped) {
                 this._drag.cancel();
                 this._settle();
+                this._resetDemand();
             }
         }, this);
         this._order.connectObject(
@@ -441,12 +448,15 @@ export class CompactToggles extends Signals.EventEmitter {
         this._drag.destroy();
         this._order.disconnectObject(this);
         this._settings.disconnectObject(this);
+        this._menuActor.disconnectObject(this);
+        this._grid.reactive = this._gridReactive;
         this._layer.disconnectObject(this);
         this._layer.destroy();
         this._actor.destroy();
         this._expandButton.destroy();
 
         this._layer = null;
+        this._menuActor = null;
         this._drag = null;
         this._order = null;
         this._timers = null;
@@ -470,11 +480,57 @@ export class CompactToggles extends Signals.EventEmitter {
         this._settings = null;
     }
 
-    _toggleDemand() {
-        this._userExpanded = !this._userExpanded;
-        this._settings.set_boolean('compact-expanded', this._userExpanded);
+    _setDemand(expanded) {
+        if (this._userExpanded === expanded || this._settings.get_string('compact-mode') !== 'demand')
+            return;
+
+        this._userExpanded = expanded;
+        this._settings.set_boolean('compact-expanded', expanded);
         this._syncDemand(true);
         this.emit('demand-changed');
+    }
+
+    _resetDemand() {
+        this._scrollDelta = 0;
+        if (!this._userExpanded || this._settings.get_boolean('compact-remember-expanded'))
+            return;
+
+        this._userExpanded = false;
+        this._settings.set_boolean('compact-expanded', false);
+        this._syncDemand(false);
+        this.emit('demand-changed');
+    }
+
+    _onScroll(event) {
+        const target = global.stage.get_event_actor(event);
+        if (this._settings.get_string('compact-mode') !== 'demand' ||
+            event.get_flags() & Clutter.EventFlags.FLAG_POINTER_EMULATED ||
+            !(this._region.contains(target) || this._actor.contains(target)))
+            return Clutter.EVENT_PROPAGATE;
+
+        const scroll = event.get_scroll_direction();
+        if (scroll === Clutter.ScrollDirection.SMOOTH)
+            return this._onSmoothScroll(event);
+        if (scroll !== Clutter.ScrollDirection.DOWN && scroll !== Clutter.ScrollDirection.UP)
+            return Clutter.EVENT_PROPAGATE;
+
+        this._setDemand(scroll === Clutter.ScrollDirection.DOWN);
+        return Clutter.EVENT_STOP;
+    }
+
+    _onSmoothScroll(event) {
+        const [, dy] = event.get_scroll_delta();
+        if (Math.sign(dy) !== Math.sign(this._scrollDelta))
+            this._scrollDelta = 0;
+        this._scrollDelta += dy;
+
+        if (Math.abs(this._scrollDelta) >= SCROLL_THRESHOLD) {
+            this._setDemand(this._scrollDelta > 0);
+            this._scrollDelta = 0;
+        }
+        if (event.get_scroll_finish_flags() & Clutter.ScrollFinishFlags.VERTICAL)
+            this._scrollDelta = 0;
+        return Clutter.EVENT_STOP;
     }
 
     _syncDemand(animate) {

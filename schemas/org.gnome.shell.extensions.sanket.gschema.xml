@@ -102,6 +102,12 @@
             <description>Show the circular toggles in one row or split over two rows</description>
         </key>
 
+        <key name="compact-remember-expanded" type="b">
+            <default>false</default>
+            <summary>Remember the expanded state in On Demand mode</summary>
+            <description>Reopen Quick Settings expanded or collapsed the way they were left, instead of always collapsed</description>
+        </key>
+
         <key name="compact-expanded" type="b">
             <default>false</default>
             <summary>Quick Settings expanded in On Demand mode</summary>
