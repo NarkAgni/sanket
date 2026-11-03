@@ -804,7 +804,8 @@ export class NotificationIsland {
     }
 
     _sync(animate) {
-        const {media, groups} = this._scan();
+        const {media, groups: allGroups} = this._scan();
+        const groups = allGroups.filter(({message}) => stackSize(message) > 0);
         const visible = media.length + groups.length > 0;
 
         if (groups.length <= 1 && this._expanded)
@@ -871,7 +872,7 @@ export class NotificationIsland {
             }
         });
 
-        return {hidden: this._expanded ? 0 : hidden, reveals};
+        return {hidden: this._expanded ? 0 : Math.max(hidden, 0), reveals};
     }
 
     _revealsInView(reveals, groups) {
