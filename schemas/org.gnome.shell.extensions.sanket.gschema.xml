@@ -159,6 +159,7 @@
         <key name="user-avatar-click" type="s">
             <choices>
                 <choice value="users"/>
+                <choice value="switch"/>
                 <choice value="none"/>
             </choices>
             <default>'users'</default>

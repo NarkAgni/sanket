@@ -39,8 +39,12 @@ export function hasClass(actor, styleClass) {
     return Boolean(actor.has_style_class_name) && actor.has_style_class_name(styleClass);
 }
 
+export function systemItem(grid) {
+    return grid.get_children().find(child => hasClass(child, 'quick-settings-system-item'));
+}
+
 export function systemRow(grid) {
-    return grid.get_children().find(child => hasClass(child, 'quick-settings-system-item')).child;
+    return systemItem(grid).child;
 }
 
 export function insertInSystemRow(grid, actor) {

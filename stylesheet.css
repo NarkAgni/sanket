@@ -319,3 +319,21 @@
 .message .message-header .message-close-button.sanket-pinned-close:active {
     background-color: rgba(165, 29, 45, 0.55);
 }
+
+.sanket-switch-user-item {
+    spacing: 12px;
+}
+
+.sanket-switch-user-avatar {
+    border-radius: 99px;
+}
+
+.sanket-switch-user-status {
+    font-size: 0.85em;
+}
+
+.quick-toggle-menu .header .icon.sanket-switch-user-icon {
+    icon-size: 38px;
+    padding: 0;
+    background-color: transparent;
+}

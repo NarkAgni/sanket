@@ -166,6 +166,7 @@ export function buildAvatarPage(window, settings) {
     addSegmentedRow(detailsGroup, settings, 'user-avatar-click', _('On Click'),
         _('What happens when you click the avatar'), [
             {name: _('Open Users'), value: 'users'},
+            {name: _('Switch User'), value: 'switch'},
             {name: _('Nothing'), value: 'none'},
         ]);
 
