@@ -24,7 +24,7 @@ import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions
 
 import {
     accentColor, addGroup, addGroupReset, addSliderRow, easeOutQuart, fillRect, fmt, paintBackdrop,
-    roundedRect, watchAccent,
+    roundedRect, tickWhileMapped, watchAccent,
 } from './PrefsWidgets.js';
 
 
@@ -45,7 +45,7 @@ class MorphDemo {
 
         this.widget = new Gtk.DrawingArea({content_height: PREVIEW_HEIGHT, hexpand: true});
         this.widget.set_draw_func((_area, cr, width, height) => this._draw(cr, width, height));
-        this.widget.add_tick_callback((widget, clock) => {
+        tickWhileMapped(this.widget, (widget, clock) => {
             const now = clock.get_frame_time() / 1000;
             if (!this._start)
                 this._start = now;

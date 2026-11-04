@@ -27,7 +27,7 @@ import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js'
 import {AnalogClock} from './AnalogClock.js';
 import {easeTo, fadeIn} from './Animations.js';
 import {TimeoutTracker} from '../lib/TimeoutTracker.js';
-import {CHILD_ADDED, CHILD_REMOVED, createBox, isActorAlive} from '../lib/Utils.js';
+import {CHILD_ADDED, CHILD_REMOVED, createBox} from '../lib/Utils.js';
 
 
 const PAGE_SIZES = {analog: 4, compact: 6};
@@ -95,11 +95,9 @@ export class WorldClocksCard {
 
     destroy() {
         this._timers.destroy();
-        if (isActorAlive(this._source)) {
-            this._source.disconnectObject(this);
-            this._source._grid.disconnectObject(this);
-            this._source._clock.disconnectObject(this);
-        }
+        this._source.disconnectObject(this);
+        this._source._grid.disconnectObject(this);
+        this._source._clock.disconnectObject(this);
         this._settings.disconnectObject(this);
         this.actor.destroy();
 

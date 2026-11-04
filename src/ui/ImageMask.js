@@ -20,11 +20,10 @@
 import Cogl from 'gi://Cogl';
 import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
-import GdkPixbuf from 'gi://GdkPixbuf';
-import { PACKAGE_VERSION } from 'resource:///org/gnome/shell/misc/config.js';
+
+import {SHELL_MAJOR} from '../lib/Utils.js';
 
 
-const SHELL_MAJOR = parseInt(PACKAGE_VERSION.split('.')[0], 10);
 const USE_STATIC_SNIPPET = SHELL_MAJOR >= 51;
 
 const DECLARATIONS = `
@@ -47,24 +46,11 @@ ${SOURCE}
 }
 `;
 
-function aspectOf(gicon) {
-    if (!gicon)
-        return 1;
-    if ('get_width' in gicon)
-        return gicon.get_width() / Math.max(gicon.get_height(), 1);
-    if (!('get_file' in gicon))
+export function coverRatio(width, height) {
+    if (width <= 0 || height <= 0)
         return 1;
 
-    const path = gicon.get_file().get_path();
-    if (!path)
-        return 1;
-
-    const [, width, height] = GdkPixbuf.Pixbuf.get_file_info(path);
-    return width > 0 && height > 0 ? width / height : 1;
-}
-
-export function coverRatio(gicon) {
-    const aspect = aspectOf(gicon);
+    const aspect = width / height;
     return Math.max(aspect, 1 / aspect);
 }
 

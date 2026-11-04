@@ -127,6 +127,10 @@
     border-radius: 99px;
 }
 
+.quick-toggle.sanket-compact-toggle.sanket-compact-more {
+    font-weight: bold;
+}
+
 .sanket-compact-toggle .quick-toggle-icon {
     margin: 0;
     padding: 0;
@@ -277,4 +281,41 @@
 
 .sanket-message-image-frame:rtl {
     margin-right: 12px;
+}
+
+.sanket-toast {
+    padding: 8px 16px;
+    border-radius: 99px;
+    background-color: rgba(30, 30, 30, 0.92);
+    color: #ffffff;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.message .message-header .message-close-button.sanket-pin-button.sanket-pinned {
+    background-color: rgba(53, 132, 228, 0.25);
+    color: #ffffff;
+}
+
+.message .message-header .message-close-button.sanket-pin-button.sanket-pinned:hover,
+.message .message-header .message-close-button.sanket-pin-button.sanket-pinned:focus {
+    background-color: rgba(53, 132, 228, 0.55);
+}
+
+.message .message-header .message-close-button.sanket-pin-button.sanket-pinned:active {
+    background-color: rgba(53, 132, 228, 0.55);
+}
+
+.message .message-header .message-close-button.sanket-pinned-close {
+    background-color: rgba(192, 28, 40, 0.25);
+    color: #ffffff;
+}
+
+.message .message-header .message-close-button.sanket-pinned-close:hover,
+.message .message-header .message-close-button.sanket-pinned-close:focus {
+    background-color: rgba(224, 27, 36, 0.55);
+}
+
+.message .message-header .message-close-button.sanket-pinned-close:active {
+    background-color: rgba(165, 29, 45, 0.55);
 }

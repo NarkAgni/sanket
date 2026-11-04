@@ -164,5 +164,17 @@
             <default>'users'</default>
             <summary>What clicking the user avatar does</summary>
         </key>
+
+        <key name="keep-pinned" type="b">
+            <default>false</default>
+            <summary>Keep pinned notifications after a restart</summary>
+            <description>Save pinned notifications and bring them back after logging out or restarting</description>
+        </key>
+
+        <key name="pinned-store" type="s">
+            <default>'[]'</default>
+            <summary>Saved pinned notifications</summary>
+            <description>Internal storage for pinned notifications kept across restarts</description>
+        </key>
     </schema>
 </schemalist>

@@ -21,14 +21,17 @@ import St from 'gi://St';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
 import * as Signals from 'resource:///org/gnome/shell/misc/signals.js';
-import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {gettext as _, ngettext} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {isToggle} from '../lib/Toggles.js';
 import {TimeoutTracker} from '../lib/TimeoutTracker.js';
 import {ReorderDrag, slideReorder} from './ReorderDrag.js';
-import {CHILD_ADDED, CHILD_REMOVED, childContaining, createBox, isActorAlive} from '../lib/Utils.js';
 import {
-    HeightAnimator, MORPH_DURATION, MORPH_MODE, centerPivot, easeTo, fadeIn, rotateTo, scaled, stopFade, stopRotation,
+    CHILD_ADDED, CHILD_REMOVED, childContaining, createBox, hasClass, insertInSystemRow, isActorAlive,
+} from '../lib/Utils.js';
+import {
+    FAST_DURATION, HeightAnimator, MORPH_DURATION, MORPH_MODE, centerPivot, easeTo, fadeIn, rotateTo, scaled, stopFade,
+    stopRotation,
 } from './Animations.js';
 
 
@@ -42,6 +45,11 @@ const TEXT_OUT_DURATION = 150;
 const TEXT_FADE_MODE = Clutter.AnimationMode.EASE_IN_OUT_QUAD;
 const FADE_AWAY_DURATION = 200;
 const SCROLL_THRESHOLD = 1;
+const LABEL_DELAY = 400;
+const LABEL_GAP = 6;
+const PROXY_BUTTONS = 'PRIMARY' in St.ButtonMask
+    ? St.ButtonMask.PRIMARY | St.ButtonMask.SECONDARY
+    : St.ButtonMask.ONE | St.ButtonMask.THREE;
 
 function findChild(actor, match) {
     for (const child of actor.get_children()) {
@@ -65,8 +73,15 @@ function findText(actor, styleClass) {
 }
 
 function isMenuButton(actor) {
-    return Boolean(actor.has_style_class_name) && actor.visible &&
-        MENU_BUTTON_CLASSES.some(styleClass => actor.has_style_class_name(styleClass));
+    return actor.visible && MENU_BUTTON_CLASSES.some(styleClass => hasClass(actor, styleClass));
+}
+
+function iconOf(item) {
+    return isToggle(item) ? findChild(item, isIcon) : null;
+}
+
+function hasMenu(item) {
+    return Boolean(item.menu) && Boolean(item.menuEnabled);
 }
 
 const SLIDER_KEYS = {
@@ -75,15 +90,15 @@ const SLIDER_KEYS = {
     BrightnessItem: 'compact-show-brightness',
 };
 
-function offsetIn(actor, layer) {
+function positionIn(actor, layer) {
     const [x, y] = actor.get_transformed_position();
     const [layerX, layerY] = layer.get_transformed_position();
     return [x - layerX, y - layerY];
 }
 
 function shapeOf(shell, icon, layer) {
-    const [x, y] = offsetIn(shell, layer);
-    const [iconX] = offsetIn(icon, layer);
+    const [x, y] = positionIn(shell, layer);
+    const [iconX] = positionIn(icon, layer);
     const [width, height] = shell.get_transformed_size();
     const [iconWidth] = icon.get_transformed_size();
     const texts = TEXT_CLASSES.map(styleClass => {
@@ -91,14 +106,14 @@ function shapeOf(shell, icon, layer) {
         if (!label)
             return null;
 
-        const [textX, textY] = offsetIn(label, layer);
+        const [textX, textY] = positionIn(label, layer);
         return {x: textX - x, y: textY - y};
     });
 
     const menuButton = findChild(shell, isMenuButton);
     let menu = null;
     if (menuButton) {
-        const [menuX] = offsetIn(menuButton, layer);
+        const [menuX] = positionIn(menuButton, layer);
         const [menuWidth] = menuButton.get_transformed_size();
         menu = {left: menuX - x, right: x + width - menuX - menuWidth};
     }
@@ -316,6 +331,11 @@ export class CompactToggles extends Signals.EventEmitter {
         this._pendingFades = new Set();
         this._timers = new TimeoutTracker();
         this._refreshId = 0;
+        this._labelId = 0;
+        this._labelPair = null;
+        this._peekId = 0;
+        this._peekItem = null;
+        this._allRows = false;
         this._drag = new ReorderDrag(
             () => this._pairs.map(pair => pair.proxy),
             (dragged, target) => this._moveProxy(dragged, target),
@@ -345,10 +365,7 @@ export class CompactToggles extends Signals.EventEmitter {
         this._expandButton.connectObject('clicked', () => this._setDemand(!this._userExpanded), this);
         this._menuActor = menu.actor;
         this._menuActor.connectObject('scroll-event', (_actor, event) => this._onScroll(event), this);
-        const row = this._grid.get_children().find(child =>
-            Boolean(child.has_style_class_name) && child.has_style_class_name('quick-settings-system-item')).child;
-        row.insert_child_below(this._expandButton, row.get_children().find(child =>
-            Boolean(child.has_style_class_name) && child.has_style_class_name('icon-button')));
+        insertInSystemRow(this._grid, this._expandButton);
 
         this._layer = new St.Widget({
             width: 0,
@@ -357,16 +374,18 @@ export class CompactToggles extends Signals.EventEmitter {
             y_align: Clutter.ActorAlign.START,
         });
         menu.actor.insert_child_below(this._layer, menu._overlay);
+        this._label = new St.Label({style_class: 'dash-label sanket-compact-label', visible: false});
+        this._layer.add_child(this._label);
         this._layer.connectObject('notify::mapped', () => {
-            if (!this._layer.mapped) {
-                this._drag.cancel();
-                this._settle();
-                this._resetDemand();
-            }
+            if (!this._layer.mapped)
+                this._onClosed();
         }, this);
         this._order.connectObject(
             'changed', () => this._refresh(),
-            'editing-changed', (_order, editing, cue) => this._drag.setEnabled(editing, cue),
+            'editing-changed', (_order, editing, cue) => {
+                this._hideLabel();
+                this._drag.setEnabled(editing, cue);
+            },
             this);
         this._settings.connectObject(
             'changed::compact-show-volume', () => this._refresh(),
@@ -386,6 +405,10 @@ export class CompactToggles extends Signals.EventEmitter {
 
     get active() {
         return this._active;
+    }
+
+    get peeking() {
+        return Boolean(this._peekItem);
     }
 
     get fullHeight() {
@@ -443,6 +466,7 @@ export class CompactToggles extends Signals.EventEmitter {
 
     destroy() {
         this._timers.destroy();
+        this._endPeek();
         if (this._active)
             this._hide(false);
         this._settle();
@@ -457,6 +481,9 @@ export class CompactToggles extends Signals.EventEmitter {
         this._expandButton.destroy();
 
         this._layer = null;
+        this._label = null;
+        this._labelPair = null;
+        this._peekItem = null;
         this._menuActor = null;
         this._drag = null;
         this._order = null;
@@ -479,6 +506,22 @@ export class CompactToggles extends Signals.EventEmitter {
         this._box = null;
         this._excluded = null;
         this._settings = null;
+    }
+
+    _onClosed() {
+        this._drag.cancel();
+        this._settle();
+        this._hideLabel();
+        this._endPeek();
+        this._resetDemand();
+        if (this._allRows) {
+            this._allRows = false;
+            this._refresh();
+        }
+    }
+
+    _doubleRows() {
+        return this._allRows || this._settings.get_string('compact-layout') === 'double';
     }
 
     _setDemand(expanded) {
@@ -548,14 +591,13 @@ export class CompactToggles extends Signals.EventEmitter {
     _show(animate) {
         this._grid.min_width = this._grid.get_preferred_width(-1)[1];
 
-        for (const item of this._grid.get_children()) {
-            if (!item.has_style_class_name || !item.visible ||
-                item.has_style_class_name('quick-settings-system-item') ||
-                this._keepsSlider(item))
-                continue;
+        const items = this._grid.get_children().filter(item => item.visible && Boolean(item.has_style_class_name) &&
+            !hasClass(item, 'quick-settings-system-item') && !this._keepsSlider(item));
+        const toggleCount = items.filter(iconOf).length;
+        const limit = this._doubleRows() || toggleCount <= COMPACT_COLUMNS ? toggleCount : COMPACT_COLUMNS - 1;
 
-            const room = this._settings.get_string('compact-layout') === 'double' || this._pairs.length < COMPACT_COLUMNS;
-            const icon = isToggle(item) && room ? findChild(item, isIcon) : null;
+        for (const item of items) {
+            const icon = this._pairs.length < limit ? iconOf(item) : null;
             if (icon) {
                 const pair = this._createPair(item, icon);
                 this._circles.add_child(pair.proxy);
@@ -571,6 +613,7 @@ export class CompactToggles extends Signals.EventEmitter {
             this._hiddenItems.push(item);
         }
 
+        this._addOverflow(toggleCount - this._pairs.length, animate);
         this._placeCircles();
 
         const refresh = () => this._queueRefresh();
@@ -584,6 +627,7 @@ export class CompactToggles extends Signals.EventEmitter {
 
     _hide(animate) {
         this._drag.cancel();
+        this._hideLabel();
         this._clearFades();
         if (animate) {
             this._pairs
@@ -694,7 +738,7 @@ export class CompactToggles extends Signals.EventEmitter {
     }
 
     _fadeAway(item) {
-        const [x, y] = offsetIn(item, this._layer);
+        const [x, y] = positionIn(item, this._layer);
         const box = item.allocation;
         const clone = new Clutter.Clone({
             source: item,
@@ -748,6 +792,7 @@ export class CompactToggles extends Signals.EventEmitter {
         const proxyIcon = new St.Icon({style_class: 'quick-toggle-icon', icon_size: ICON_SIZE});
         const proxy = new St.Button({
             style_class: 'button quick-toggle sanket-compact-toggle',
+            button_mask: PROXY_BUTTONS,
             can_focus: true,
             x_expand: true,
             x_align: Clutter.ActorAlign.CENTER,
@@ -755,21 +800,163 @@ export class CompactToggles extends Signals.EventEmitter {
             child: proxyIcon,
         });
 
+        const pair = {item, icon, proxy, proxyIcon};
         const sync = () => {
             proxy.checked = item.checked;
             proxy.reactive = item.reactive;
+            proxy.accessible_name = item.title || '';
             proxyIcon.gicon = icon.gicon;
         };
+        const label = () => this._syncLabel(pair);
 
-        item.connectObject('notify::checked', sync, 'notify::reactive', sync, this);
+        item.connectObject('notify::checked', sync, 'notify::reactive', sync, 'notify::title', sync, this);
         icon.connectObject('notify::gicon', sync, this);
-        proxy.connectObject('clicked', () => this._activate(item), this);
+        proxy.connectObject(
+            'clicked', (_proxy, button) => {
+                this._hideLabel();
+                if (button === Clutter.BUTTON_SECONDARY)
+                    this._openMenu(item);
+                else
+                    this._activate(item);
+            },
+            'key-press-event', (_proxy, event) => this._onProxyKey(item, event),
+            'notify::hover', label,
+            'key-focus-in', label,
+            'key-focus-out', label,
+            this);
         this._drag.watch(proxy);
 
         sync();
-        const pair = {item, icon, proxy, proxyIcon};
         this._pairs.push(pair);
         return pair;
+    }
+
+    _addOverflow(count, animate) {
+        if (count <= 0)
+            return;
+
+        const button = new St.Button({
+            style_class: 'button quick-toggle sanket-compact-toggle sanket-compact-more',
+            can_focus: true,
+            x_expand: true,
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+            label: `+${count}`,
+            accessible_name: ngettext('%d More Setting', '%d More Settings', count).format(count),
+        });
+        button.connectObject('clicked', () => this._showAllRows(), this);
+        this._circles.add_child(button);
+        if (animate) {
+            button.opacity = 0;
+            fadeIn(button, MORPH_DURATION);
+        }
+    }
+
+    _showAllRows() {
+        this._allRows = true;
+        this._onRowsChanged();
+    }
+
+    _onProxyKey(item, event) {
+        const symbol = event.get_key_symbol();
+        const shifted = event.get_state() & Clutter.ModifierType.SHIFT_MASK;
+        if (symbol !== Clutter.KEY_Menu && !(shifted && symbol === Clutter.KEY_F10))
+            return Clutter.EVENT_PROPAGATE;
+
+        this._openMenu(item);
+        return Clutter.EVENT_STOP;
+    }
+
+    _openMenu(item) {
+        if (!isActorAlive(item) || !hasMenu(item))
+            return;
+
+        this._endPeek();
+        this._peekItem = item;
+        this._peekId = this._timers.addIdle(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this.emit('demand-changed');
+            this._peekId = this._timers.addTimeout(GLib.PRIORITY_DEFAULT, scaled(MORPH_DURATION), () => {
+                this._peekId = 0;
+                this._presentMenu(item);
+                return GLib.SOURCE_REMOVE;
+            });
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _presentMenu(item) {
+        if (!isActorAlive(item) || !item.mapped || this._active) {
+            this._endPeek();
+            return;
+        }
+
+        item.menu.connectObject('open-state-changed', (_menu, open) => {
+            if (!open)
+                this._endPeek();
+        }, this);
+        item.menu.open();
+    }
+
+    _endPeek() {
+        if (!this._peekItem)
+            return;
+
+        const item = this._peekItem;
+        this._timers.remove(this._peekId);
+        this._peekId = 0;
+        this._peekItem = null;
+        if (isActorAlive(item))
+            item.menu.disconnectObject(this);
+        this.emit('demand-changed');
+    }
+
+    _syncLabel(pair) {
+        const {proxy} = pair;
+        const wanted = isActorAlive(proxy) && (proxy.hover || proxy.has_key_focus()) && !this._order.editing;
+        if (!wanted) {
+            if (this._labelPair === pair)
+                this._hideLabel();
+            return;
+        }
+
+        if (this._labelPair === pair)
+            return;
+
+        this._hideLabel();
+        this._labelPair = pair;
+        this._labelId = this._timers.addTimeout(GLib.PRIORITY_DEFAULT, LABEL_DELAY, () => {
+            this._labelId = 0;
+            this._showLabel(pair);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _showLabel({item, proxy}) {
+        const text = item.title || '';
+        if (!text || !proxy.mapped)
+            return;
+
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        const [x, y] = positionIn(proxy, this._layer);
+        const [width] = proxy.get_transformed_size();
+        this._label.text = text;
+        const [, labelWidth] = this._label.get_preferred_width(-1);
+        const [, labelHeight] = this._label.get_preferred_height(labelWidth);
+
+        this._label.set_position(Math.round(x + (width - labelWidth) / 2), Math.round(y - labelHeight - LABEL_GAP * scale));
+        this._label.opacity = 0;
+        this._label.show();
+        fadeIn(this._label, FAST_DURATION);
+    }
+
+    _hideLabel() {
+        this._timers.remove(this._labelId);
+        this._labelId = 0;
+        this._labelPair = null;
+        if (isActorAlive(this._label)) {
+            this._label.remove_transition('opacity');
+            this._label.hide();
+        }
     }
 
     _syncSpacing() {
@@ -805,7 +992,10 @@ export class CompactToggles extends Signals.EventEmitter {
     }
 
     _commitOrder() {
-        this._order.commit(this._circles.get_children().map(proxy => this._pairs.find(pair => pair.proxy === proxy).item));
+        this._order.commit(this._circles.get_children()
+            .map(proxy => this._pairs.find(pair => pair.proxy === proxy))
+            .filter(Boolean)
+            .map(pair => pair.item));
     }
 
     _activate(item) {

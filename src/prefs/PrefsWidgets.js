@@ -21,7 +21,7 @@ import Adw from 'gi://Adw';
 import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
-import cairo from 'gi://cairo';
+import Cairo from 'cairo';
 
 import {makeGroupResetButton} from './ResetButtons.js';
 import {onSettingChanged} from './SettingsSignals.js';
@@ -44,6 +44,7 @@ const GNOME_ACCENTS = {
 };
 
 let sliderCss = null;
+let interfaceSettings = null;
 
 export const fmt = {
     ms: value => `${Math.round(value)} ms`,
@@ -61,12 +62,30 @@ export function accentColor() {
     if (styleManager.get_accent_color_rgba)
         return styleManager.get_accent_color_rgba();
 
-    const schema = Gio.SettingsSchemaSource.get_default().lookup('org.gnome.desktop.interface', true);
-    if (!schema || !schema.has_key('accent-color'))
-        return parseColor(FALLBACK_ACCENT);
+    if (!interfaceSettings) {
+        const schema = Gio.SettingsSchemaSource.get_default().lookup('org.gnome.desktop.interface', true);
+        if (!schema || !schema.has_key('accent-color'))
+            return parseColor(FALLBACK_ACCENT);
+        interfaceSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+    }
 
-    const name = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'}).get_string('accent-color');
-    return parseColor(GNOME_ACCENTS[name] || FALLBACK_ACCENT);
+    return parseColor(GNOME_ACCENTS[interfaceSettings.get_string('accent-color')] || FALLBACK_ACCENT);
+}
+
+export function tickWhileMapped(widget, tick, isRunning = () => true) {
+    let id = 0;
+    const sync = () => {
+        const running = widget.get_mapped() && isRunning();
+        if (running && !id) {
+            id = widget.add_tick_callback(tick);
+        } else if (!running && id) {
+            widget.remove_tick_callback(id);
+            id = 0;
+        }
+    };
+    widget.connect('map', sync);
+    widget.connect('unmap', sync);
+    return sync;
 }
 
 export function watchAccent(area) {
@@ -370,13 +389,13 @@ export function paintCard(cr, x, y, width, height, radius) {
 }
 
 export function paintBackdrop(cr, width, height) {
-    const base = new cairo.LinearGradient(0, 0, width, height);
+    const base = new Cairo.LinearGradient(0, 0, width, height);
     base.addColorStopRGB(0, 0.13, 0.19, 0.34);
     base.addColorStopRGB(1, 0.27, 0.16, 0.36);
     cr.setSource(base);
     cr.paint();
 
-    const glow = new cairo.RadialGradient(width * 0.3, height * 0.2, 0, width * 0.3, height * 0.2, width * 0.6);
+    const glow = new Cairo.RadialGradient(width * 0.3, height * 0.2, 0, width * 0.3, height * 0.2, width * 0.6);
     glow.addColorStopRGBA(0, 0.98, 0.62, 0.42, 0.45);
     glow.addColorStopRGBA(1, 0.98, 0.62, 0.42, 0);
     cr.setSource(glow);

@@ -24,7 +24,7 @@ import GObject from 'gi://GObject';
 import {WeatherCard} from './WeatherCard.js';
 import {WorldClocksCard} from './WorldClocksCard.js';
 import {CalendarMotion} from '../shell/CalendarMotion.js';
-import {createBox, detachActor, isActorAlive} from '../lib/Utils.js';
+import {createBox, detachActor} from '../lib/Utils.js';
 import {HeightAnimator, MORPH_DURATION, MORPH_MODE, easeTo, fadeIn, stopFade} from './Animations.js';
 
 
@@ -171,15 +171,13 @@ export class CalendarPanel {
 
     destroy() {
         this._settings.disconnectObject(this);
-        if (this._dateMenu.menu)
-            this._dateMenu.menu.disconnectObject(this);
-        this._watched.filter(isActorAlive).forEach(actor => actor.disconnectObject(this));
+        this._dateMenu.menu.disconnectObject(this);
+        this._watched.forEach(actor => actor.disconnectObject(this));
 
         this._height.stop();
         this._motion.destroy();
         stopFade(this.actor);
-        if (isActorAlive(this._date))
-            this._date.visible = this._dateVisible;
+        this._date.visible = this._dateVisible;
 
         [...this._restores].reverse().forEach(restore => restore());
         this._clocks.destroy();

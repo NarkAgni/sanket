@@ -33,10 +33,11 @@ const SLIDE_DURATION = 220;
 const SLIDE_MODE = Clutter.AnimationMode.EASE_OUT_CUBIC;
 const MOVE_INTERVAL = 60 * 1000;
 
-function containsPoint(actor, x, y) {
+function containsPoint(actor, x, y, vertical) {
     const [inside, localX, localY] = actor.get_parent().transform_stage_point(x, y);
     const box = actor.get_allocation_box();
-    return inside && localX >= box.x1 && localX < box.x2 && localY >= box.y1 && localY < box.y2;
+    const withinX = vertical || (localX >= box.x1 && localX < box.x2);
+    return inside && withinX && localY >= box.y1 && localY < box.y2;
 }
 
 export function slideReorder(container, reorder, skip) {
@@ -65,10 +66,14 @@ export function slideReorder(container, reorder, skip) {
 }
 
 export class ReorderDrag {
-    constructor(items, onMove, onDrop) {
+    constructor(items, onMove, onDrop, {modifier = 0, canStart = () => true, vertical = false, bounds = null} = {}) {
         this._items = items;
         this._onMove = onMove;
         this._onDrop = onDrop;
+        this._modifier = modifier;
+        this._canStart = canStart;
+        this._vertical = vertical;
+        this._bounds = bounds;
         this._watched = new Set();
         this._styles = new Map();
         this._landing = new Map();
@@ -126,10 +131,12 @@ export class ReorderDrag {
         this._items = null;
         this._onMove = null;
         this._onDrop = null;
+        this._canStart = null;
+        this._bounds = null;
     }
 
     _syncCue(item) {
-        if (!this._enabled) {
+        if (!this._enabled || !this._cue) {
             this._restoreStyle(item);
             return;
         }
@@ -153,17 +160,24 @@ export class ReorderDrag {
 
         const type = event.type();
         if (type === Clutter.EventType.BUTTON_PRESS) {
-            this._press = event.get_button() === Clutter.BUTTON_PRIMARY ? {item, coords: event.get_coords()} : null;
-            return Clutter.EVENT_STOP;
+            this._press = this._accepts(item, event) ? {item, coords: event.get_coords()} : null;
+            return this._press || !this._modifier ? Clutter.EVENT_STOP : Clutter.EVENT_PROPAGATE;
         }
         if (type === Clutter.EventType.BUTTON_RELEASE) {
+            const ours = Boolean(this._press) || !this._modifier;
             this._press = null;
-            return Clutter.EVENT_STOP;
+            return ours ? Clutter.EVENT_STOP : Clutter.EVENT_PROPAGATE;
         }
         if (type === Clutter.EventType.MOTION && this._press)
             return this._onPressMotion(event);
 
         return Clutter.EVENT_PROPAGATE;
+    }
+
+    _accepts(item, event) {
+        return event.get_button() === Clutter.BUTTON_PRIMARY &&
+            (event.get_state() & this._modifier) === this._modifier &&
+            this._canStart(item) && this._items().includes(item);
     }
 
     _onPressMotion(event) {
@@ -193,6 +207,9 @@ export class ReorderDrag {
             item,
             clone,
             grab: Main.pushModal(clone),
+            originX: itemX,
+            width,
+            height,
             offsetX: x - itemX,
             offsetY: y - itemY,
             target: null,
@@ -207,9 +224,13 @@ export class ReorderDrag {
     _onDragMotion(event) {
         const drag = this._drag;
         const [x, y] = event.get_coords();
-        drag.clone.set_position(x - drag.offsetX, y - drag.offsetY);
+        const left = this._vertical ? drag.originX : x - drag.offsetX;
+        const top = this._clampTop(y - drag.offsetY, drag.height);
+        drag.clone.set_position(left, top);
 
-        const target = this._items().find(other => other !== drag.item && containsPoint(other, x, y)) || null;
+        const probeY = this._vertical ? top + drag.height / 2 : y;
+        const target = this._items().find(other =>
+            other !== drag.item && containsPoint(other, x, probeY, this._vertical)) || null;
         const now = GLib.get_monotonic_time();
         if (!target) {
             drag.target = null;
@@ -219,6 +240,16 @@ export class ReorderDrag {
             drag.movedAt = now;
         }
         return Clutter.EVENT_STOP;
+    }
+
+    _clampTop(top, height) {
+        if (!this._bounds)
+            return top;
+
+        const area = this._bounds();
+        const [, areaY] = area.get_transformed_position();
+        const [, areaHeight] = area.get_transformed_size();
+        return Math.min(Math.max(top, areaY), Math.max(areaY, areaY + areaHeight - height));
     }
 
     _finish(animate) {

@@ -24,22 +24,18 @@ import Clutter from 'gi://Clutter';
 import AccountsService from 'gi://AccountsService';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {createBox} from '../lib/Utils.js';
+import {createBox, systemRow} from '../lib/Utils.js';
 
 
 const USERS_PANELS = ['gnome-users-panel.desktop', 'gnome-user-accounts-panel.desktop'];
 const NAME_GAP = 8;
 const LOOK_KEYS = ['user-avatar-style', 'user-avatar-size', 'user-avatar-name', 'user-avatar-click'];
 
-function hasClass(actor, styleClass) {
-    return Boolean(actor.has_style_class_name) && actor.has_style_class_name(styleClass);
-}
-
 export class UserAvatar {
     constructor(menu, settings) {
         this._menu = menu;
         this._settings = settings;
-        this._row = menu._grid.get_children().find(child => hasClass(child, 'quick-settings-system-item')).child;
+        this._row = systemRow(menu._grid);
         this._user = AccountsService.UserManager.get_default().get_user(GLib.get_user_name());
         this._themeContext = St.ThemeContext.get_for_stage(global.stage);
         this._button = null;
@@ -73,6 +69,7 @@ export class UserAvatar {
         const appSystem = Shell.AppSystem.get_default();
         this._app = USERS_PANELS.map(id => appSystem.lookup_app(id)).find(Boolean) || null;
 
+        this._fallback = new St.Icon({icon_name: 'avatar-default-symbolic'});
         this._picture = new St.Bin({style_class: 'sanket-user-avatar', y_align: Clutter.ActorAlign.CENTER});
         this._name = new St.Label({style_class: 'sanket-user-name', y_align: Clutter.ActorAlign.CENTER});
 
@@ -112,9 +109,12 @@ export class UserAvatar {
     _remove() {
         const owner = this._button;
         [this._settings, this._user, this._menu, this._themeContext].forEach(source => source.disconnectObject(owner));
+        if (!this._fallback.get_parent())
+            this._fallback.destroy();
         this._button.destroy();
 
         this._button = null;
+        this._fallback = null;
         this._picture = null;
         this._name = null;
         this._app = null;
@@ -178,15 +178,14 @@ export class UserAvatar {
 
     _syncPicture() {
         const file = this._user.get_icon_file();
-        if (file && GLib.file_test(file, GLib.FileTest.EXISTS)) {
-            this._picture.child = null;
-            this._picture.style = `background-image: url("${file}"); background-size: cover;`;
-            return;
-        }
+        const hasFile = Boolean(file) && GLib.file_test(file, GLib.FileTest.EXISTS);
 
-        const size = Math.round(this._pictureSize / this._themeContext.scale_factor);
-        this._picture.style = null;
-        this._picture.child = new St.Icon({icon_name: 'avatar-default-symbolic', icon_size: size});
+        this._fallback.icon_size = Math.round(this._pictureSize / this._themeContext.scale_factor);
+        this._picture.style = hasFile ? `background-image: url("${file}"); background-size: cover;` : null;
+        if (hasFile && this._picture.child)
+            this._picture.child = null;
+        else if (!hasFile && !this._picture.child)
+            this._picture.child = this._fallback;
     }
 
     _activate() {

@@ -1,3 +1,52 @@
+## [2.0.2] - 04-11-2026
+
+### New
+
+#### Pinned notifications, reworked
+* **Keep After Restart**: a new option on the Island page saves your pinned notifications and brings them back, still pinned, after logging out or restarting (GNOME 46 and newer, off by default)
+  * Restored notifications don't pop up as banners again, keep their original time, and open their app when clicked
+  * If an app takes back a notification you pinned, it stays in the list until you unpin it
+  * Pins now also survive locking and unlocking the screen
+* Pinned notifications can no longer be closed by accident: trying the close button, Delete or Backspace makes the card shake, and a short note says *"This notification is pinned. Unpin it to clear it."* right at the bottom of that card
+* The pin and close buttons always stay visible on pinned notifications, with a soft blue and red background so you can tell them apart at a glance
+* Inside an app's stack you now pin single notifications instead of the whole stack; **Clear** removes everything else from that stack and keeps only the pinned ones
+* **Clear** removes every notification that isn't pinned; the pinned ones stay put with a little shake, and the note only shows when nothing but pinned notifications is left
+* Pinned notifications always sit on top, both in the list and inside their app's stack; new notifications from the same app slide in below them
+* The collapsed island shows at most two pinned notifications, with the most recently pinned one on top; the rest wait behind **More Notifications**
+
+#### Rearrange pinned notifications
+* Hold **Ctrl** and drag a pinned notification up or down to move it; a pinned app stack moves as a whole, and inside an open stack you can reorder its pinned notifications
+* A notification you move stays exactly where you dropped it, newly pinned ones fill the remaining places, and unpinning one moves the others up into its spot
+* The dragged card stays inside the notification list while you move it
+
+#### Compact Quick Settings
+* With **One Row**, a **+N** circle now shows how many toggles didn't fit; tap it to see them all instead of losing them
+* Right-click a circle, or press the Menu key, to open the toggle's menu, like the Wi-Fi network list or Bluetooth devices
+* Hovering or focusing a circle shows the toggle's name, and screen readers now announce it too
+
+#### Do Not Disturb on GNOME 45 to 48
+* A **Do Not Disturb** toggle is added to Quick Settings on GNOME 45, 46, 47 and 48, where the calendar's switch is hidden by the island; GNOME 49 and newer already have their own
+
+### Improved
+* Notification corners now follow the rounded corners of the island, Quick Settings or calendar around them, right from the moment it opens
+* Dismissing the top notification of a collapsed list now crossfades into the next one; the island no longer jumps first and resizes smoothly once the fade is done
+* Clicking a notification that isn't pinned works like in GNOME again and dismisses it; pinned notifications stay
+* Pinning a notification no longer changes its time to *Just now*
+* Much less work on every frame while Quick Settings is open, and notification pictures are measured without blocking the shell
+* Previews in the settings window stop animating while their page isn't visible
+* The weather card's high and low temperatures can now be translated
+* The extension page on extensions.gnome.org now has a donate button
+
+### Fixed
+* **Clear** now works while an app's stack is open on GNOME 49 and newer, instead of only closing the stack
+* Closing the top notification of a collapsed app stack again removes only that notification on GNOME 48 and newer
+* Two extensions using the same name for their toggles no longer mix up each other's saved position
+* Removed several "already disposed" errors from the system log, including the ones after closing the last notification of an open stack and when logging out
+* Removed the `St.ButtonMask` deprecation warnings on newer GNOME versions
+
+### Note
+* Because toggles are now remembered in a more reliable way, your custom toggle order is reset once after updating; just arrange it again
+
 ## [2.0.1] - 03-11-2026
 
 ### New

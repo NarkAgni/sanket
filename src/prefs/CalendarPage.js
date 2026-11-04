@@ -26,7 +26,7 @@ import {drawWeather} from '../lib/WeatherArt.js';
 import {onSettingChanged} from './SettingsSignals.js';
 import {
     accentColor, addArt, addChoiceCards, addGroup, addGroupReset, addSwitchRow, fillRect, paintBackdrop,
-    roundedRect, watchAccent,
+    roundedRect, tickWhileMapped, watchAccent,
 } from './PrefsWidgets.js';
 
 
@@ -203,6 +203,7 @@ function weatherGallery(settings) {
     const origin = GLib.get_monotonic_time();
     const animated = () => settings.get_boolean('weather-animated');
     const areas = [];
+    const ticks = [];
 
     WEATHER_SAMPLES().forEach(([kind, night, title]) => {
         const area = new Gtk.DrawingArea({content_width: 110, content_height: 80, halign: Gtk.Align.CENTER});
@@ -214,11 +215,10 @@ function weatherGallery(settings) {
             cr.translate(10, 8);
             drawWeather(cr, width - 20, height - 16, kind, night, time);
         });
-        area.add_tick_callback(() => {
-            if (animated())
-                area.queue_draw();
+        ticks.push(tickWhileMapped(area, () => {
+            area.queue_draw();
             return GLib.SOURCE_CONTINUE;
-        });
+        }, animated));
         areas.push(area);
 
         const tile = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 6});
@@ -227,7 +227,10 @@ function weatherGallery(settings) {
         gallery.append(tile);
     });
 
-    onSettingChanged(settings, 'weather-animated', () => areas.forEach(area => area.queue_draw()));
+    onSettingChanged(settings, 'weather-animated', () => {
+        ticks.forEach(sync => sync());
+        areas.forEach(area => area.queue_draw());
+    });
     return gallery;
 }
 

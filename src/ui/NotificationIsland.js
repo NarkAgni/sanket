@@ -28,11 +28,12 @@ import {gettext as _, ngettext} from 'resource:///org/gnome/shell/extensions/ext
 import {IslandLayout} from './IslandLayout.js';
 import {TimeoutTracker} from '../lib/TimeoutTracker.js';
 import {ScrollbarAutoHide} from './ScrollbarAutoHide.js';
+import {PinnedStore} from '../shell/PinnedStore.js';
 import {MessageDecorator} from '../shell/MessageDecorator.js';
-import {CHILD_ADDED, CHILD_REMOVED, createBox, detachActor, isActorAlive} from '../lib/Utils.js';
+import {CHILD_ADDED, CHILD_REMOVED, createBox, detachActor, hasClass, isActorAlive} from '../lib/Utils.js';
 import {
-    DURATION, FAST_DURATION, HeightAnimator, MODE, MORPH_DURATION, MORPH_MODE, centerPivot, easeTo, rotateTo, scaled,
-    stopFade, stopRotation,
+    DURATION, FAST_DURATION, HeightAnimator, MODE, MORPH_DURATION, MORPH_MODE, centerPivot, easeTo, jiggle, rotateTo,
+    scaled, stopFade, stopRotation,
 } from './Animations.js';
 
 
@@ -56,11 +57,15 @@ const CALENDAR_CLASS = 'sanket-notif-calendar';
 const EDGE_INSET = 2;
 const PEEK_ALPHA = [0.7, 0.4];
 const PEEK_INSET = 10;
+const MIN_RADIUS = 6;
+const DEPART_DURATION = 260;
+const PINNED_SHOWN = 2;
+const TOAST_TIMEOUT = 2400;
 
 function findCard(actor) {
     if (!actor.visible)
         return null;
-    if (actor.has_style_class_name && actor.has_style_class_name('message'))
+    if (hasClass(actor, 'message'))
         return actor;
 
     for (const child of actor.get_children()) {
@@ -69,6 +74,37 @@ function findCard(actor) {
             return card;
     }
     return null;
+}
+
+function findMessages(actor, found = []) {
+    for (const child of actor.get_children()) {
+        if (hasClass(child, 'message'))
+            found.push(child);
+        else
+            findMessages(child, found);
+    }
+    return found;
+}
+
+function insetIn(actor, container) {
+    const side = actor.get_text_direction() === Clutter.TextDirection.RTL ? St.Side.RIGHT : St.Side.LEFT;
+    let inset = 0;
+    let child = actor;
+    while (child !== container) {
+        const parent = child.get_parent();
+        if ('get_theme_node' in child)
+            inset += child.get_theme_node().get_margin(side);
+        if ('get_theme_node' in parent) {
+            const node = parent.get_theme_node();
+            inset += node.get_padding(side) + node.get_border_width(side);
+        }
+        child = parent;
+    }
+    return inset;
+}
+
+function isRounded(actor) {
+    return 'get_theme_node' in actor && actor.get_theme_node().get_border_radius(St.Corner.TOPLEFT) > 0;
 }
 
 const CardLayout = GObject.registerClass(
@@ -145,13 +181,22 @@ export class NotificationIsland {
         this._warmId = 0;
         this._stackShown = false;
         this._paintOwner = {};
+        this._stackKey = '';
+        this._roundedParent = null;
+        this._styled = new Set();
+        this._departing = new WeakSet();
+        this._departures = new Set();
         this._scrolling = false;
         this._cardRoom = 0;
         this._collapsedHeight = 0;
         this._readLayout();
         this._controlsTop = false;
 
-        this._decorator = new MessageDecorator(this._messageList, () => this._onMessagesChanged());
+        this._toast = null;
+        this._toastId = 0;
+        this._store = new PinnedStore(settings);
+        this._decorator = new MessageDecorator(this._messageList, this._store,
+            () => this._onMessagesChanged(), card => this._showToast(card));
 
         this._buildActors();
         this._adoptMessageList();
@@ -159,6 +204,7 @@ export class NotificationIsland {
         this._placeCard();
         this._followTheme();
         this._connectSignals();
+        this._decorator.pinRestored(this._store.restore());
         this._sync(false);
     }
 
@@ -190,38 +236,38 @@ export class NotificationIsland {
         this._clearBindings();
         this._settings.disconnectObject(this);
 
-        if (this._menu)
-            this._menu.disconnectObject(this);
-        if (isActorAlive(this._menu._overlay))
-            this._menu._overlay.disconnectObject(this);
-        if (this._dateMenu.menu)
-            this._dateMenu.menu.disconnectObject(this);
-        if (isActorAlive(this._boxPointer))
-            this._boxPointer.disconnectObject(this);
-        if (isActorAlive(this._holder))
-            this._holder.disconnectObject(this);
+        this._menu.disconnectObject(this);
+        this._menu._overlay.disconnectObject(this);
+        this._dateMenu.menu.disconnectObject(this);
+        this._boxPointer.disconnectObject(this);
+        this._messageList._scrollView.disconnectObject(this);
+        this._messageList._scrollView.child.disconnectObject(this);
 
-        this._lists.filter(isActorAlive).forEach(list => list.disconnectObject(this));
+        this._lists.forEach(list => list.disconnectObject(this));
         Main.messageTray.disconnectObject(this);
         for (const source of Main.messageTray.getSources()) {
             source.disconnectObject(this);
             source.notifications.forEach(notification => notification.disconnectObject(this));
         }
 
-        if (isActorAlive(this._messageList)) {
-            this._scan().groups.forEach(({wrapper, message}) => {
-                if (isActorAlive(message))
-                    message.disconnectObject(this);
-                if (isActorAlive(message._unexpandButton))
-                    message._unexpandButton.show();
-                if (isActorAlive(wrapper)) {
-                    this._stopReveal(wrapper);
-                    setShown(wrapper, true);
-                }
-            });
-        }
+        this._finishDepartures();
+        this._scan().groups.forEach(({wrapper, message}) => {
+            message.disconnectObject(this);
+            if (isActorAlive(message._unexpandButton))
+                message._unexpandButton.show();
+            this._stopReveal(wrapper);
+            setShown(wrapper, true);
+        });
+        this._styled.forEach(message => {
+            message.disconnectObject(this);
+            message.style = null;
+        });
+        this._styled.clear();
 
         this._decorator.destroy();
+        this._store.destroy();
+        if (this._toast)
+            this._toast.destroy();
         this._scrollbar.destroy();
         this._restoreTheme();
         this._restoreControls();
@@ -231,10 +277,11 @@ export class NotificationIsland {
         if (this._calendarPanel.notifications)
             this._calendarPanel.setNotifications(null);
         this._card.destroy();
-        if (isActorAlive(this._holder))
-            this._holder.destroy();
+        this._holder.destroy();
 
         this._decorator = null;
+        this._store = null;
+        this._toast = null;
         this._scrollbar = null;
         this._layout = null;
         this._holder = null;
@@ -251,6 +298,10 @@ export class NotificationIsland {
         this._pillIcon = null;
         this._lists = null;
         this._trackedGroups = null;
+        this._styled = null;
+        this._roundedParent = null;
+        this._departing = null;
+        this._departures = null;
         this._groupShown = null;
         this._reveals = null;
         this._messageView = null;
@@ -356,9 +407,6 @@ export class NotificationIsland {
         this._holder = new St.Widget({width: 0, height: 0, layout_manager: this._layout});
         this._attachHolder();
         this._menu._overlay.connectObject('notify::has-clip', () => this._attachHolder(), this);
-
-        this._boxPointer.connectObject('destroy', () => this._clearBindings(), this);
-        this._holder.connectObject('destroy', () => this._clearBindings(), this);
     }
 
     _adoptMessageList() {
@@ -389,12 +437,22 @@ export class NotificationIsland {
 
         this._scrollbar = new ScrollbarAutoHide(this._messageList._scrollView,
             this._settings.get_string('scrollbar-mode'));
+        [this._messageList._scrollView, this._messageList._scrollView.child].forEach(actor =>
+            actor.connectObject('notify::allocation', () => this._syncScrolling(), this));
         this._settings.connectObject(
             'changed::scrollbar-mode', () => this._scrollbar.setMode(this._settings.get_string('scrollbar-mode')),
             'changed::compact-mode', () => this._queueSync(),
             'changed::compact-layout', () => this._queueSync(),
             'changed::notification-layout', () => this._onLayoutChanged(),
+            'changed::keep-pinned', () => this._onKeepChanged(),
             this);
+    }
+
+    _onKeepChanged() {
+        if (this._store.enabled)
+            this._decorator.keepHeld();
+        else
+            this._store.clear();
     }
 
     _releaseMessageList() {
@@ -409,18 +467,15 @@ export class NotificationIsland {
         }
         this._placeholder = null;
 
-        if (this._dateMenu && this._dateMenu.menu && isActorAlive(this._dateMenu.menu.actor))
-            this._setCaptureContainer(this._dateMenu.menu.actor);
-        if (isActorAlive(this._messageList))
-            [this._messageList.x_expand, this._messageList.y_expand] = this._messageExpand;
-        if (this._restoreMessageList)
-            this._restoreMessageList();
+        this._setCaptureContainer(this._dateMenu.menu.actor);
+        [this._messageList.x_expand, this._messageList.y_expand] = this._messageExpand;
+        this._restoreMessageList();
         this._restoreMessageList = null;
         this._messageExpand = null;
     }
 
     _setCaptureContainer(actor) {
-        if (isActorAlive(this._messageList) && this._messageList.setCaptureContainer)
+        if (this._messageList.setCaptureContainer)
             this._messageList.setCaptureContainer(actor);
     }
 
@@ -439,6 +494,10 @@ export class NotificationIsland {
         this._clearButton.x_align = Clutter.ActorAlign.START;
         this._clearButton.y_align = Clutter.ActorAlign.CENTER;
         this._clearButton.x_expand = true;
+        this._clearButton.connectObject('clicked', () => this._onClearClicked(), this);
+        this._collapseGesture = this._messageList._clickGesture || null;
+        if (this._collapseGesture)
+            this._collapseGesture.connectObject('may-recognize', () => !this._onControls(this._collapseGesture), this);
 
         this._hiddenControls = this._controls.get_children().filter(child =>
             child !== this._clearButton && child.visible);
@@ -448,7 +507,15 @@ export class NotificationIsland {
         this._controls.add_child(this._pillRow);
     }
 
+    _onControls(gesture) {
+        const target = global.stage.get_event_actor(gesture.get_point_event(0));
+        return Boolean(target) && isActorAlive(this._controls) && this._controls.contains(target);
+    }
+
     _restoreControls() {
+        if (this._collapseGesture)
+            this._collapseGesture.disconnectObject(this);
+        this._collapseGesture = null;
         if (isActorAlive(this._controls) && isActorAlive(this._pillRow) && this._pillRow.get_parent() === this._controls)
             this._controls.remove_child(this._pillRow);
         if (isActorAlive(this._pillRow))
@@ -459,6 +526,7 @@ export class NotificationIsland {
             this._controls.show();
         }
         if (isActorAlive(this._clearButton)) {
+            this._clearButton.disconnectObject(this);
             [this._clearButton.x_align, this._clearButton.x_expand, this._clearButton.y_align] = this._clearAlign;
             this._clearButton.remove_style_class_name(PILL_CLASS);
             this._clearButton.remove_style_class_name('flat');
@@ -518,6 +586,7 @@ export class NotificationIsland {
     }
 
     _placeCard() {
+        this._roundedParent = null;
         this._slot.actor = this._card;
         if (this._inCalendar) {
             if (this._calendarPanel.notifications !== this._slot) {
@@ -593,9 +662,11 @@ export class NotificationIsland {
     }
 
     _onLayoutChanged() {
+        this._roundedParent = null;
         this._readLayout();
         this._placeCard();
         this._syncGutter();
+        this._syncScrolling();
         this._queueSync();
     }
 
@@ -623,9 +694,11 @@ export class NotificationIsland {
             : 0;
 
         this._clipEdge = edge;
+        this._stackKey = '';
         this._scrollbar.setOffset(rtl ? -edge : edge);
         this._syncClip();
         this._syncInset();
+        this._applyRadius();
     }
 
     _syncInset() {
@@ -728,14 +801,15 @@ export class NotificationIsland {
 
     _onOpenStateChanged(open) {
         global.stage.disconnectObject(this._paintOwner);
-        if (!open)
+        if (!open) {
+            this._finishDepartures();
+            this._hideToast(false);
             return;
+        }
 
-        global.stage.connectObject('after-paint', () => {
-            this._alignStack();
-            this._syncScrolling();
-        }, this._paintOwner);
+        global.stage.connectObject('after-paint', () => this._alignStack(), this._paintOwner);
 
+        this._stackKey = '';
         this._applyExpanded(false);
         this._scrollbar.reset();
         this._placeCard();
@@ -795,7 +869,8 @@ export class NotificationIsland {
             .reduce((delta, {message}) => {
                 const width = message.allocation.get_width();
                 const [, current] = message.get_preferred_height(width);
-                return delta + heightAt(message, message === expandedGroup ? 1 : 0, width) - current;
+                const target = this._decorator.measure(() => heightAt(message, message === expandedGroup ? 1 : 0, width));
+                return delta + target - current;
             }, 0);
     }
 
@@ -819,15 +894,16 @@ export class NotificationIsland {
 
     _sync(animate) {
         const {media, groups: allGroups} = this._scan();
-        const groups = allGroups.filter(({message}) => stackSize(message) > 0);
+        const groups = allGroups.filter(({message}) => stackSize(message) > 0 && !this._departing.has(message));
         const visible = media.length + groups.length > 0;
 
         if (groups.length <= 1 && this._expanded)
             this._applyExpanded(false);
 
         const {hidden, reveals} = this._syncGroups(groups, animate);
+        this._applyRadius();
         this._syncPill(hidden, animate);
-        this._setStackAnchor(groups.find(({wrapper}) => wrapper.visible));
+        this._setStackAnchor(groups.filter(({wrapper}) => wrapper.visible).at(-1));
         this._syncStack(this._expanded ? 0 : hidden, animate);
 
         const groupOpen = this._syncGroupButton();
@@ -839,7 +915,7 @@ export class NotificationIsland {
         const mode = this._settings.get_string('compact-mode');
         const demanded = mode === 'demand' && !this._compactToggles.userExpanded;
         const needed = mode === 'auto' && visible && !this._inCalendar && this._needsCompact();
-        this._compactToggles.setActive(mode === 'always' || demanded || needed, animate);
+        this._compactToggles.setActive((mode === 'always' || demanded || needed) && !this._compactToggles.peeking, animate);
         this._syncCardHeight();
         this._syncCard(visible, animate);
         if (this._inCalendar)
@@ -867,7 +943,8 @@ export class NotificationIsland {
             this._decorator.decorate(message);
 
             const pinned = this._decorator.isPinned(message);
-            const shown = this._expanded || pinned || (!hasPinned && group === groups[0]);
+            const shown = this._expanded || (pinned && this._decorator.pinnedRank(message) < PINNED_SHOWN) ||
+                (!hasPinned && group === groups[0]);
             const wasShown = this._groupShown.has(wrapper) ? this._groupShown.get(wrapper) : wrapper.visible;
             this._groupShown.set(wrapper, shown);
             hidden += shown ? (message.expanded ? 0 : stackSize(message) - 1) : stackSize(message);
@@ -950,8 +1027,183 @@ export class NotificationIsland {
         }
     }
 
+    depart(wrapper, finish) {
+        const message = wrapper.child;
+        if (!this._messageView || this._expanded || message !== this._stackAnchor || !wrapper.mapped)
+            return false;
+
+        const next = this._scan().groups.find(group => group.wrapper !== wrapper &&
+            stackSize(group.message) > 0 && !this._departing.has(group.message));
+        if (!next || next.wrapper.visible)
+            return false;
+
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        const scrollView = this._messageList._scrollView;
+        const [viewX, viewY] = scrollView.get_transformed_position();
+        const [viewWidth, viewHeight] = scrollView.get_transformed_size();
+        const [x, y] = message.get_transformed_position();
+        const [width, height] = message.get_transformed_size();
+
+        const frame = new St.Widget({clip_to_allocation: true, x: viewX, y: viewY, width: viewWidth, height: viewHeight});
+        const leaving = new Clutter.Clone({source: message, x: x - viewX, y: y - viewY, width, height});
+        frame.add_child(leaving);
+        Main.layoutManager.uiGroup.add_child(frame);
+
+        const held = this._inCalendar ? -1 : this._card.allocation.get_height();
+        if (held >= 0) {
+            this._cardHeight.stop();
+            this._card.height = held;
+        }
+
+        const departure = {frame, finish, held, wrapper, next: next.wrapper};
+        this._departures.add(departure);
+        this._departing.add(message);
+        wrapper.hide();
+
+        this._stopReveal(next.wrapper);
+        this._groupShown.set(next.wrapper, true);
+        setShown(next.wrapper, true);
+        next.wrapper.set_pivot_point(0.5, 0);
+        next.wrapper.scale_x = Math.max(width - 2 * PEEK_INSET * scale, 1) / Math.max(width, 1);
+        next.wrapper.opacity = 0;
+        this._stack.remove_transition('opacity');
+        this._stack.opacity = 0;
+
+        easeTo(next.wrapper, {scale_x: 1, opacity: 255}, null, DEPART_DURATION, MODE);
+        easeTo(leaving, {opacity: 0}, () => this._endDeparture(departure), DEPART_DURATION, MODE);
+
+        this._sync(true);
+        return true;
+    }
+
+    _endDeparture(departure) {
+        if (!this._departures.delete(departure))
+            return;
+
+        departure.frame.destroy();
+        if (isActorAlive(departure.next)) {
+            departure.next.remove_transition('scale-x');
+            departure.next.remove_transition('opacity');
+            departure.next.scale_x = 1;
+            departure.next.opacity = 255;
+        }
+        if (isActorAlive(departure.wrapper)) {
+            departure.wrapper.set_scale(0, 0);
+            departure.wrapper.opacity = 0;
+            departure.wrapper.show();
+        }
+        if (isActorAlive(this._card) && departure.held >= 0) {
+            if (this._card.mapped)
+                this._cardHeight.animate(departure.held);
+            else
+                this._cardHeight.stop();
+        }
+        if (isActorAlive(this._stack))
+            easeTo(this._stack, {opacity: 255}, null, FAST_DURATION);
+        departure.finish();
+    }
+
+    _finishDepartures() {
+        [...this._departures].forEach(departure => this._endDeparture(departure));
+    }
+
+    _onClearClicked() {
+        const cards = this._scan().groups.flatMap(({message}) => this._decorator.pinnedCards(message));
+        if (cards.length === 0)
+            return;
+
+        cards.forEach(card => jiggle(card));
+        if (!this._decorator.clearedOthers)
+            this._showToast(cards[0]);
+    }
+
+    _showToast(card) {
+        if (!this._toast) {
+            this._toast = new St.Label({
+                style_class: 'sanket-toast',
+                text: _('This notification is pinned. Unpin it to clear it.'),
+                visible: false,
+            });
+            Main.layoutManager.uiGroup.add_child(this._toast);
+        }
+
+        const [cardX, cardY] = card.get_transformed_position();
+        const [cardWidth, cardHeight] = card.get_transformed_size();
+        const [, width] = this._toast.get_preferred_width(-1);
+        const [, height] = this._toast.get_preferred_height(width);
+        const monitor = Main.layoutManager.findMonitorForActor(card);
+        const x = cardX + (cardWidth - width) / 2;
+        const y = cardY + cardHeight - height / 2;
+        const left = monitor ? Math.min(Math.max(x, monitor.x), monitor.x + monitor.width - width) : x;
+        const top = monitor ? Math.min(y, monitor.y + monitor.height - height) : y;
+
+        Main.layoutManager.uiGroup.set_child_above_sibling(this._toast, null);
+        this._toast.set_position(Math.round(left), Math.round(top));
+        if (!this._toast.visible) {
+            this._toast.opacity = 0;
+            this._toast.show();
+        }
+        easeTo(this._toast, {opacity: 255}, null, FAST_DURATION);
+
+        this._timers.remove(this._toastId);
+        this._toastId = this._timers.addTimeout(GLib.PRIORITY_DEFAULT, scaled(TOAST_TIMEOUT), () => {
+            this._toastId = 0;
+            this._hideToast(true);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _hideToast(animate) {
+        this._timers.remove(this._toastId);
+        this._toastId = 0;
+        if (!this._toast || !this._toast.visible)
+            return;
+
+        if (animate) {
+            easeTo(this._toast, {opacity: 0}, () => this._toast.hide(), FAST_DURATION);
+        } else {
+            this._toast.remove_transition('opacity');
+            this._toast.hide();
+        }
+    }
+
     _setStackAnchor(group) {
         this._stackAnchor = group ? group.message : null;
+    }
+
+    _roundedContainer() {
+        if (!isActorAlive(this._roundedParent) || !isRounded(this._roundedParent)) {
+            let actor = this._messageList.get_parent();
+            while (actor.get_parent() && !isRounded(actor))
+                actor = actor.get_parent();
+            this._roundedParent = actor;
+        }
+        return this._roundedParent;
+    }
+
+    _applyRadius() {
+        if (!this._messageList.get_stage())
+            return;
+
+        const container = this._roundedContainer();
+        if (!isRounded(container))
+            return;
+
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        const outer = container.get_theme_node().get_border_radius(St.Corner.TOPLEFT);
+        findMessages(this._messageList).forEach(message => {
+            const radius = Math.max(outer - insetIn(message, container), MIN_RADIUS * scale);
+            const style = `border-radius: ${Math.round(radius / scale)}px;`;
+            if (message.style === style)
+                return;
+
+            message.style = style;
+            if (!this._styled.has(message)) {
+                this._styled.add(message);
+                message.connectObject('destroy', () => this._styled.delete(message), this);
+            }
+        });
+        this._stackKey = '';
     }
 
     _alignStack() {
@@ -966,10 +1218,15 @@ export class NotificationIsland {
         if (![anchorX, anchorY, stackX, stackY].every(Number.isFinite) || !(anchorWidth > 0 && stackWidth > 0))
             return;
 
+        const restyle = !card.hover;
+        const key = [anchorX, anchorY, anchorWidth, anchorHeight, stackX, stackY, stackWidth, restyle].join();
+        if (key === this._stackKey)
+            return;
+
+        this._stackKey = key;
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
         const node = card.get_theme_node();
         const {red, green, blue, alpha} = node.get_background_color();
-        const restyle = !card.hover;
         const radius = Math.round(node.get_border_radius(St.Corner.BOTTOMLEFT) / scale);
 
         const shift = anchorY + anchorHeight - stackY;
@@ -995,6 +1252,7 @@ export class NotificationIsland {
         }
 
         this._stackShown = shown;
+        this._stackKey = '';
 
         const [duration, mode] = this._merged || this._inCalendar
             ? [MORPH_DURATION, MORPH_MODE]

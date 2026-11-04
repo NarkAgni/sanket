@@ -42,7 +42,7 @@ export default class SanketPreferences extends ExtensionPreferences {
         setupHeaderBar(this, window);
 
         window.connect('close-request', () => {
-            disconnectSettingSignals();
+            disconnectSettingSignals(settings);
             return false;
         });
     }

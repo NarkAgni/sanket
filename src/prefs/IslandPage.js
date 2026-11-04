@@ -301,6 +301,11 @@ export function buildIslandPage(window, settings) {
         {value: 'never', title: _('Never'), description: _('Scroll without a bar'), art: scrollbarArt(0, false)},
     ]);
 
+    const pinGroup = addGroup(page, _('Pinned Notifications'), _('Notifications you pin stay until you unpin them'));
+    addGroupReset(pinGroup, settings, ['keep-pinned']);
+    addSwitchRow(pinGroup, settings, 'keep-pinned', _('Keep After Restart'),
+        _('Save pinned notifications on this device and bring them back after logging out or restarting'));
+
     const quickGroup = addGroup(page, _('Compact Quick Settings'),
         _('Toggles collapse into circles, up to six in a row'));
     addGroupReset(quickGroup, settings,
@@ -311,7 +316,7 @@ export function buildIslandPage(window, settings) {
         {value: 'demand', title: _('On Demand'), description: _('Circles until you tap Expand Settings or scroll down'), art: compactArt('demand')},
     ]);
     const rowCards = addChoiceCards(quickGroup, settings, 'compact-layout', [
-        {value: 'single', title: _('One Row'), description: _('Up to six circles, the rest stay hidden'), art: rowsArt(1)},
+        {value: 'single', title: _('One Row'), description: _('Up to six circles, the rest behind a + button'), art: rowsArt(1)},
         {value: 'double', title: _('Two Rows'), description: _('Six per row, the rest on a second row'), art: rowsArt(2)},
     ]);
     [modeCards, rowCards].forEach(cards => cards.set_margin_top(CARD_GAP));

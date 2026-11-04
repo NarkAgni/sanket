@@ -25,16 +25,12 @@ import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js'
 
 import {TimeoutTracker} from '../lib/TimeoutTracker.js';
 import {ReorderDrag, slideReorder} from './ReorderDrag.js';
-import {CHILD_ADDED, CHILD_REMOVED, tintOf} from '../lib/Utils.js';
+import {CHILD_ADDED, CHILD_REMOVED, insertInSystemRow, tintOf} from '../lib/Utils.js';
 import {arrange, gridToggles, isToggle, mergeOrder, moveOnto, placeToggles, toggleKeys} from '../lib/Toggles.js';
 
 
 const EDITING_CLASS = 'sanket-editing';
 const CUE_ALPHA = 0.35;
-
-function hasClass(actor, styleClass) {
-    return Boolean(actor.has_style_class_name) && actor.has_style_class_name(styleClass);
-}
 
 export class ToggleOrder extends Signals.EventEmitter {
     constructor(menu, settings) {
@@ -99,7 +95,6 @@ export class ToggleOrder extends Signals.EventEmitter {
     }
 
     _addEditButton() {
-        const row = this._grid.get_children().find(child => hasClass(child, 'quick-settings-system-item')).child;
         this._editButton = new St.Button({
             style_class: 'icon-button sanket-edit-button',
             can_focus: true,
@@ -109,7 +104,7 @@ export class ToggleOrder extends Signals.EventEmitter {
         });
         this._editButton.connectObject('clicked', () => this._setEditing(!this._editing), this);
 
-        row.insert_child_below(this._editButton, row.get_children().find(child => hasClass(child, 'icon-button')));
+        insertInSystemRow(this._grid, this._editButton);
     }
 
     _setEditing(editing) {

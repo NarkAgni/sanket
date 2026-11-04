@@ -17,11 +17,15 @@
 */
 
 
+import GObject from 'gi://GObject';
+
+import {hasClass} from './Utils.js';
+
+
 const TOGGLE_CLASSES = ['quick-toggle', 'quick-toggle-has-menu', 'quick-menu-toggle'];
 
 export function isToggle(actor) {
-    return Boolean(actor.has_style_class_name) &&
-        TOGGLE_CLASSES.some(styleClass => actor.has_style_class_name(styleClass));
+    return TOGGLE_CLASSES.some(styleClass => hasClass(actor, styleClass));
 }
 
 export function gridToggles(grid) {
@@ -31,7 +35,7 @@ export function gridToggles(grid) {
 export function toggleKeys(toggles) {
     const counts = new Map();
     return new Map(toggles.map(toggle => {
-        const name = toggle.constructor.name;
+        const name = GObject.type_name(toggle.constructor.$gtype);
         const count = counts.get(name) || 0;
         counts.set(name, count + 1);
         return [toggle, `${name}:${count}`];

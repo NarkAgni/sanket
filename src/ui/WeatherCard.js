@@ -189,7 +189,7 @@ export class WeatherCard {
 
         this._temperature.text = current === null ? '' : `${current}°`;
         this._summary.text = conditions && conditions !== '-' ? conditions : describe(kind, night);
-        this._range.text = range ? `↑ ${range[0]}°   ↓ ${range[1]}°` : '';
+        this._range.text = range ? _('↑ %d°   ↓ %d°').format(range[0], range[1]) : '';
         this._range.visible = range !== null;
         this._location.text = info.get_location_name();
     }

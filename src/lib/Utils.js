@@ -23,7 +23,7 @@ import GObject from 'gi://GObject';
 import * as Config from 'resource:///org/gnome/shell/misc/config.js';
 
 
-const SHELL_MAJOR = Number(Config.PACKAGE_VERSION.split('.')[0]);
+export const SHELL_MAJOR = Number(Config.PACKAGE_VERSION.split('.')[0]);
 
 export const CHILD_ADDED = SHELL_MAJOR >= 46 ? 'child-added' : 'actor-added';
 export const CHILD_REMOVED = SHELL_MAJOR >= 46 ? 'child-removed' : 'actor-removed';
@@ -33,6 +33,19 @@ export function createBox(vertical, styleClass, props = {}) {
         ? {orientation: vertical ? Clutter.Orientation.VERTICAL : Clutter.Orientation.HORIZONTAL}
         : {vertical};
     return new St.BoxLayout({style_class: styleClass, ...orientation, ...props});
+}
+
+export function hasClass(actor, styleClass) {
+    return Boolean(actor.has_style_class_name) && actor.has_style_class_name(styleClass);
+}
+
+export function systemRow(grid) {
+    return grid.get_children().find(child => hasClass(child, 'quick-settings-system-item')).child;
+}
+
+export function insertInSystemRow(grid, actor) {
+    const row = systemRow(grid);
+    row.insert_child_below(actor, row.get_children().find(child => hasClass(child, 'icon-button')));
 }
 
 export function detachActor(actor) {
@@ -66,6 +79,7 @@ export function isActorAlive(actor) {
     const state = GObject.Object.prototype.toString.call(actor).toUpperCase();
     return !state.includes('DISPOSED') && !state.includes('FINALIZED');
 }
+
 export function tintOf(actor, alpha) {
     const {red, green, blue} = actor.get_theme_node().get_foreground_color();
     return `rgba(${red}, ${green}, ${blue}, ${alpha})`;

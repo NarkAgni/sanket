@@ -17,6 +17,7 @@
 */
 
 
+import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 
 import {isActorAlive} from '../lib/Utils.js';
@@ -117,6 +118,27 @@ export function stopRotation(actor, angle) {
 
     actor.remove_transition('rotation-angle-z');
     actor.rotation_angle_z = angle;
+}
+
+const JIGGLE_OFFSETS = [-10, 9, -7, 5, -3, 0];
+const JIGGLE_STEP = 45;
+
+export function jiggle(actor) {
+    const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+    const step = index => {
+        if (index < JIGGLE_OFFSETS.length)
+            easeTo(actor, {translation_x: JIGGLE_OFFSETS[index] * scale}, () => step(index + 1), JIGGLE_STEP,
+                Clutter.AnimationMode.EASE_OUT_QUAD);
+    };
+    step(0);
+}
+
+export function stopJiggle(actor) {
+    if (!isActorAlive(actor))
+        return;
+
+    actor.remove_transition('translation-x');
+    actor.translation_x = 0;
 }
 
 export function measureHeight(actor) {

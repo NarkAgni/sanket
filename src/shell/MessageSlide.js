@@ -24,10 +24,10 @@ import {easeTo} from '../ui/Animations.js';
 import {CHILD_ADDED, isActorAlive} from '../lib/Utils.js';
 
 
-const SLIDE_DURATION = 240;
-const SLIDE_MODE = Clutter.AnimationMode.EASE_OUT_CUBIC;
+export const SLIDE_DURATION = 240;
+export const SLIDE_MODE = Clutter.AnimationMode.EASE_OUT_CUBIC;
 
-function slideOffset(item) {
+export function slideOffset(item) {
     const direction = item.get_text_direction() === Clutter.TextDirection.RTL ? -1 : 1;
     return Math.round(item.width * 0.65) * direction;
 }
@@ -57,10 +57,11 @@ export class MessageSlide {
         this._injections = new InjectionManager();
         this._leaving = new WeakSet();
         this._patched = new WeakSet();
+        this._departure = null;
         this._view = messageList._messageView;
 
         if (this._view) {
-            this._patch(this._view, '_removeMessage', parentOf, () => true);
+            this._patch(this._view, '_removeMessage', parentOf, () => true, (item, finish) => this._depart(item, finish));
             this._view.connectObject(CHILD_ADDED, (_view, item) => this._watchGroup(item.child), this);
             this._view.get_children().forEach(item => this._watchGroup(item.child));
         } else {
@@ -69,27 +70,46 @@ export class MessageSlide {
         }
     }
 
+    setDeparture(handler) {
+        this._departure = handler;
+    }
+
     destroy() {
-        if (this._view)
+        if (this._view) {
             this._view.disconnectObject(this);
+            this._view.get_children().map(item => item.child).filter(Boolean).forEach(message => message.disconnectObject(this));
+        }
         this._injections.clear();
 
+        this._departure = null;
         this._injections = null;
         this._leaving = null;
         this._patched = null;
         this._view = null;
     }
 
+    _depart(item, finish) {
+        return Boolean(this._departure) && this._departure(item, finish);
+    }
+
+    _unhighlight(group) {
+        const effect = this._view.get_effect('highlight');
+        if (effect && effect.highlightActor === group)
+            effect.highlightActor = null;
+    }
+
     _watchGroup(message) {
         if (!message || !message._removeNotification)
             return;
 
+        message.connectObject('destroy', () => this._unhighlight(message), this);
         const prototype = Object.getPrototypeOf(message);
         if (this._patched.has(prototype))
             return;
 
         this._patched.add(prototype);
-        this._patch(prototype, '_removeNotification', groupItemOf, (group, item) => this._prepareGroup(group, item));
+        this._patch(prototype, '_removeNotification', groupItemOf, (group, item) => this._prepareGroup(group, item),
+            item => item.get_parent()._notificationToMessage.size === 1);
     }
 
     _prepareGroup(group, item) {
@@ -115,7 +135,7 @@ export class MessageSlide {
         return true;
     }
 
-    _patch(target, method, findItem, prepare) {
+    _patch(target, method, findItem, prepare, depart = () => false) {
         const leaving = this._leaving;
 
         this._injections.overrideMethod(target, method, original => function (subject, animate = true) {
@@ -123,18 +143,17 @@ export class MessageSlide {
             if (leaving.has(item))
                 return;
 
+            const finish = () => original.call(this, subject, animate);
             if (!animate || item.translation_x !== 0 || !prepare(this, item)) {
-                original.call(this, subject, animate);
+                finish();
                 return;
             }
 
             leaving.add(item);
-            easeTo(
-                item,
-                {translation_x: slideOffset(item), opacity: 0},
-                () => original.call(this, subject, animate),
-                SLIDE_DURATION,
-                SLIDE_MODE);
+            if (depart(item, finish))
+                return;
+
+            easeTo(item, {translation_x: slideOffset(item), opacity: 0}, finish, SLIDE_DURATION, SLIDE_MODE);
         });
     }
 }

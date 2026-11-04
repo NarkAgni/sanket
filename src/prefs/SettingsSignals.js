@@ -17,13 +17,16 @@
 */
 
 
-const handlers = [];
+const handlers = new Map();
 
 export function onSettingChanged(settings, key, callback) {
-    handlers.push({settings, id: settings.connect(`changed::${key}`, callback)});
+    if (!handlers.has(settings))
+        handlers.set(settings, []);
+    handlers.get(settings).push(settings.connect(`changed::${key}`, callback));
 }
 
-export function disconnectSettingSignals() {
-    handlers.forEach(({settings, id}) => settings.disconnect(id));
-    handlers.length = 0;
+export function disconnectSettingSignals(settings) {
+    const ids = handlers.get(settings) || [];
+    ids.forEach(id => settings.disconnect(id));
+    handlers.delete(settings);
 }
