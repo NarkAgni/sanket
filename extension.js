@@ -20,7 +20,7 @@
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {SHELL_MAJOR} from './src/lib/Utils.js';
+import {SHELL_MAJOR, systemItem} from './src/lib/Utils.js';
 import {ToggleOrder} from './src/ui/ToggleOrder.js';
 import {UserAvatar} from './src/ui/UserAvatar.js';
 import {SourceMerge} from './src/shell/SourceMerge.js';
@@ -34,7 +34,28 @@ import {NotificationIsland} from './src/ui/NotificationIsland.js';
 
 export default class SanketExtension extends Extension {
     enable() {
+        const {quickSettings} = Main.panel.statusArea;
+        const grid = quickSettings.menu._grid;
+
+        // Quick Settings populates its grid asynchronously at shell startup,
+        // so on login the system item may not exist yet. Wait for it.
+        if (systemItem(grid)) {
+            this._setup();
+            return;
+        }
+
+        grid.connectObject('child-added', () => {
+            if (!systemItem(grid))
+                return;
+            grid.disconnectObject(this);
+            this._setup();
+        }, this);
+        this._grid = grid;
+    }
+
+    _setup() {
         const {dateMenu, quickSettings} = Main.panel.statusArea;
+        this._grid = null;
 
         this._settings = this.getSettings();
         this._syncSpeed();
@@ -53,6 +74,13 @@ export default class SanketExtension extends Extension {
     }
 
     disable() {
+        if (this._grid) {
+            this._grid.disconnectObject(this);
+            this._grid = null;
+        }
+        if (!this._settings)
+            return;
+
         this._messageSlide.setDeparture(null);
         this._island.destroy();
         this._userAvatar.destroy();
